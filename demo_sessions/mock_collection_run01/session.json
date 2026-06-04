@@ -1,0 +1,11 @@
+{
+  "session_id": "mock_collection_run01",
+  "phase": "demo",
+  "run_index": 1,
+  "started_at": "2026-06-12T10:00:00Z",
+  "route_name": "campus_demo_route",
+  "device": "mock Raspberry Pi 3B + IMU + GPS + webcam",
+  "model_version": "tiny-forest-mock",
+  "label_policy_version": "mock_policy_v1",
+  "notes": "deterministic mock session for development"
+}
