@@ -1,0 +1,94 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+  color: #172033;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 18px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+header p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  min-height: 0;
+  flex: 1;
+}
+
+#map {
+  min-height: 420px;
+}
+
+aside {
+  padding: 16px;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+  overflow: auto;
+}
+
+aside h2 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+dt {
+  color: #64748b;
+}
+
+dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+#details {
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  line-height: 1.6;
+  font-size: 13px;
+}

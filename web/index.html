@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>소형 바퀴 이동 위험 후보 지도</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <div>
+      <h1>소형 바퀴 이동 위험 후보 지도</h1>
+      <p>Mock 세션 기반 before/after 도로 위험 후보 비교</p>
+    </div>
+    <div class="controls">
+      <label>
+        세션
+        <select id="session-list"></select>
+      </label>
+      <label>
+        <input type="checkbox" id="danger-only" checked>
+        주의·위험만 표시
+      </label>
+      <label>
+        최소 confidence
+        <input type="range" id="confidence-filter" min="0" max="1" step="0.05" value="0.35">
+        <span id="confidence-value">0.35</span>
+      </label>
+      <label>
+        <input type="checkbox" id="gps-valid-only" checked>
+        GPS valid만
+      </label>
+    </div>
+  </header>
+
+  <main>
+    <section id="map"></section>
+    <aside>
+      <h2>구간 비교</h2>
+      <div id="summary"></div>
+      <h2>선택 구간</h2>
+      <div id="details">지도 구간이나 이벤트를 선택하세요.</div>
+    </aside>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
