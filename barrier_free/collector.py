@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 from . import features, mock_data, model, schema
@@ -77,6 +78,72 @@ def run_mock_collection(output_dir: Path, seed: int = 42, model_path: Path | Non
     return schema.write_session_bundle(bundle, output_path)
 
 
+def run_sensor_collection(
+    output_dir: Path,
+    *,
+    imu_reader,
+    gps_reader,
+    camera=None,
+    duration_seconds: float = 60.0,
+    sample_rate_hz: float = 20.0,
+    model_path: Path | None = None,
+    session_id: str | None = None,
+    impact_threshold: float = 1.8,
+    sleeper=time.sleep,
+    clock=time.time,
+) -> Path:
+    """실제 센서 reader에서 세션을 수집한다.
+
+    imu_reader는 `read_sample(timestamp=None)`, gps_reader는 `read_sample()`을 제공해야 한다.
+    camera는 선택 사항이며 `capture(path)`를 제공하면 이벤트 사진을 저장한다.
+    """
+
+    classifier = _load_model(model_path)
+    started_at = clock()
+    session_id = session_id or time.strftime("pi_session_%Y%m%d_%H%M%S", time.localtime(started_at))
+    raw_imu = []
+    gps_rows = []
+    sample_count = max(1, int(duration_seconds * sample_rate_hz))
+    interval = 1.0 / sample_rate_hz
+
+    for _ in range(sample_count):
+        ts = clock()
+        raw_imu.append(imu_reader.read_sample(timestamp=ts))
+        gps_rows.append(gps_reader.read_sample())
+        if sleeper is not None:
+            sleeper(0 if sample_count <= 10 else interval)
+
+    bundle = {
+        "session": {
+            "session_id": session_id,
+            "phase": "demo",
+            "run_index": 1,
+            "started_at": _iso8601(started_at),
+            "route_name": "pi_field_collection",
+            "device": "Raspberry Pi 3B + MPU6050 + NEO-M8N + USB webcam",
+            "model_version": "tiny-forest-mock" if classifier else "none",
+            "label_policy_version": "none",
+            "notes": "hardware sensor collection",
+        },
+        "raw_imu": raw_imu,
+        "gps": gps_rows,
+        "events": [],
+        "labels": [],
+    }
+
+    windows = features.window_imu_rows(raw_imu, window_seconds=1.0)
+    events = _events_from_windows(
+        windows,
+        gps_rows,
+        classifier=classifier,
+        camera=camera,
+        output_dir=output_dir / session_id,
+        impact_threshold=impact_threshold,
+    )
+    bundle["events"] = events
+    return schema.write_session_bundle(bundle, output_dir / session_id)
+
+
 def _load_model(model_path: Path | None) -> model.TinyForestClassifier | None:
     if model_path is None:
         return None
@@ -86,3 +153,66 @@ def _load_model(model_path: Path | None) -> model.TinyForestClassifier | None:
 def _nearest_gps(window: list[dict], gps_rows: list[dict]) -> dict:
     middle = (window[0]["timestamp"] + window[-1]["timestamp"]) / 2
     return min(gps_rows, key=lambda row: abs(row["timestamp"] - middle))
+
+
+def _events_from_windows(
+    windows: list[list[dict]],
+    gps_rows: list[dict],
+    *,
+    classifier: model.TinyForestClassifier | None,
+    camera,
+    output_dir: Path,
+    impact_threshold: float,
+) -> list[dict]:
+    events = []
+    for index, window in enumerate(windows, start=1):
+        speed = features.nearest_speed_for_window(window, gps_rows)
+        feature_row = features.extract_window_features(window, speed_mps=speed)
+        gps_row = _nearest_gps(window, gps_rows)
+        if classifier is None:
+            if feature_row["accel_mag_max"] < impact_threshold:
+                continue
+            prediction = {
+                "prediction": "candidate",
+                "confidence": min(0.99, feature_row["accel_mag_max"] / max(impact_threshold * 2, 0.1)),
+                "risk_score": min(1.0, feature_row["accel_mag_max"] / max(impact_threshold * 2, 0.1)),
+            }
+            model_version = "none"
+        else:
+            prediction = classifier.predict(feature_row)
+            if prediction["prediction"] == "normal":
+                continue
+            model_version = "tiny-forest-mock"
+
+        event_id = f"event_{index:04d}"
+        photo_before = ""
+        photo_after = ""
+        if camera is not None:
+            photo_before = f"photos/{event_id}_before.jpg"
+            photo_after = f"photos/{event_id}_after.jpg"
+            camera.capture(output_dir / photo_before)
+            camera.capture(output_dir / photo_after)
+
+        events.append(
+            {
+                "event_id": event_id,
+                "timestamp_start": window[0]["timestamp"],
+                "timestamp_end": window[-1]["timestamp"],
+                "lat": gps_row["lat"],
+                "lon": gps_row["lon"],
+                "gps_valid": gps_row["gps_valid"],
+                "speed_mps": gps_row["speed_mps"],
+                "prediction": prediction["prediction"],
+                "confidence": round(float(prediction["confidence"]), 3),
+                "risk_score": round(float(prediction["risk_score"]), 3),
+                "segment_id": "",
+                "photo_before": photo_before,
+                "photo_after": photo_after,
+                "model_version": model_version,
+            }
+        )
+    return events
+
+
+def _iso8601(timestamp: float) -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(timestamp))

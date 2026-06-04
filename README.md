@@ -50,6 +50,73 @@ http://localhost:8000/web/
 - `web/demo_data.json`: 웹 지도가 읽는 payload
 - `web/index.html`: 관리자 지도
 
+## Raspberry Pi 실제 센서 준비
+
+지원하는 하드웨어:
+
+- IMU: MPU6050, I2C 주소 기본 `0x68`
+- GPS: NEO-M8N, UART 기본 `/dev/serial0`, `9600 baud`
+- Camera: USB 웹캠, 기본 `/dev/video0`, `fswebcam` 사용
+
+Pi에서 필요한 설정:
+
+```bash
+sudo raspi-config
+```
+
+- Interface Options에서 I2C 활성화
+- Interface Options에서 Serial Port 활성화
+- Serial login shell은 비활성화, serial hardware는 활성화
+
+Pi 패키지:
+
+```bash
+sudo apt update
+sudo apt install -y python3-smbus i2c-tools fswebcam python3-pip
+python3 -m pip install pyserial
+```
+
+센서 연결 확인:
+
+```bash
+i2cdetect -y 1
+```
+
+`0x68` 위치에 MPU6050이 보여야 합니다.
+
+프로젝트 health check:
+
+```bash
+python3 -m barrier_free.cli check-imu
+python3 -m barrier_free.cli check-gps --port /dev/serial0
+python3 -m barrier_free.cli check-camera --device /dev/video0 --out camera_check
+```
+
+짧은 실제 수집:
+
+```bash
+python3 -m barrier_free.cli collect \
+  --out sessions \
+  --duration 30 \
+  --rate 20 \
+  --gps-port /dev/serial0 \
+  --camera-device /dev/video0
+```
+
+모델을 사용한 추론 수집:
+
+```bash
+python3 -m barrier_free.cli collect \
+  --out sessions \
+  --duration 60 \
+  --rate 20 \
+  --model demo_sessions/model.json \
+  --gps-port /dev/serial0 \
+  --camera-device /dev/video0
+```
+
+모델 없이 수집하면 `candidate` 이벤트를 저장합니다. 모델을 주면 `caution`/`danger` 이벤트를 저장합니다.
+
 ## 설계와 계획
 
 - 설계 문서: `docs/superpowers/specs/2026-06-04-barrier-free-road-risk-design.md`

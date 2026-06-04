@@ -40,12 +40,76 @@ class CollectorCliTest(unittest.TestCase):
             self.assertTrue({row["prediction"] for row in events} <= {"caution", "danger"})
             self.assertGreater(len(events), 0)
 
+    def test_sensor_collection_writes_real_session_contract_with_camera_photos(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            imu = FakeIMU()
+            gps = FakeGPS()
+            camera = FakeCamera()
+
+            path = collector.run_sensor_collection(
+                out,
+                imu_reader=imu,
+                gps_reader=gps,
+                camera=camera,
+                duration_seconds=1.0,
+                sample_rate_hz=5,
+            )
+
+            self.assertTrue((path / "session.json").exists())
+            self.assertTrue((path / "raw_imu.csv").exists())
+            self.assertTrue((path / "gps.csv").exists())
+            events = list(_read_csv(path / "events.csv"))
+            self.assertGreater(len(events), 0)
+            self.assertEqual({row["prediction"] for row in events}, {"candidate"})
+            self.assertTrue((path / events[0]["photo_before"]).exists())
+
 
 def _read_csv(path: Path):
     import csv
 
     with path.open("r", newline="", encoding="utf-8") as f:
         yield from csv.DictReader(f)
+
+
+class FakeIMU:
+    def __init__(self):
+        self.index = 0
+
+    def read_sample(self, timestamp=None):
+        self.index += 1
+        shock = 2.4 if self.index in {2, 3} else 0.0
+        return {
+            "timestamp": 1000.0 + self.index * 0.2 if timestamp is None else timestamp,
+            "ax": shock,
+            "ay": 0.0,
+            "az": 1.0 + shock,
+            "gx": 0.0,
+            "gy": 0.0,
+            "gz": 0.0,
+        }
+
+
+class FakeGPS:
+    def __init__(self):
+        self.index = 0
+
+    def read_sample(self):
+        self.index += 1
+        return {
+            "timestamp": 1000.0 + self.index * 0.2,
+            "lat": 36.628 + self.index * 0.00001,
+            "lon": 127.456,
+            "gps_valid": 1,
+            "speed_mps": 2.7,
+        }
+
+
+class FakeCamera:
+    def capture(self, path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"fake image")
+        return path
 
 
 if __name__ == "__main__":

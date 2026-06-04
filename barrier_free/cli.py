@@ -27,6 +27,26 @@ def main(argv: list[str] | None = None) -> int:
     e2e.add_argument("--out", type=Path, default=Path("demo_sessions"))
     e2e.add_argument("--seed", type=int, default=42)
 
+    check_imu = sub.add_parser("check-imu", help="MPU6050 연결과 샘플 값을 확인한다")
+    check_imu.add_argument("--bus", type=int, default=1)
+
+    check_gps = sub.add_parser("check-gps", help="NEO-M8N GPS 연결과 RMC 값을 확인한다")
+    check_gps.add_argument("--port", default="/dev/serial0")
+    check_gps.add_argument("--baudrate", type=int, default=9600)
+
+    check_camera = sub.add_parser("check-camera", help="USB 웹캠 캡처를 확인한다")
+    check_camera.add_argument("--device", default="/dev/video0")
+    check_camera.add_argument("--out", type=Path, default=Path("camera_check"))
+
+    collect = sub.add_parser("collect", help="실제 센서로 주행 세션을 수집한다")
+    collect.add_argument("--out", type=Path, default=Path("sessions"))
+    collect.add_argument("--duration", type=float, default=60.0)
+    collect.add_argument("--rate", type=float, default=20.0)
+    collect.add_argument("--model", type=Path, default=None)
+    collect.add_argument("--gps-port", default="/dev/serial0")
+    collect.add_argument("--gps-baudrate", type=int, default=9600)
+    collect.add_argument("--camera-device", default="/dev/video0")
+
     args = parser.parse_args(argv)
     if args.command == "demo":
         path = collector.run_mock_collection(args.out, seed=args.seed, model_path=args.model)
@@ -40,6 +60,19 @@ def main(argv: list[str] | None = None) -> int:
         path = run_end_to_end_demo(args.out, seed=args.seed)
         web_path = _project_root() / "web" / "demo_data.json"
         web_path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
+        print(path)
+        return 0
+    if args.command == "check-imu":
+        print(json.dumps(_check_imu(args.bus), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "check-gps":
+        print(json.dumps(_check_gps(args.port, args.baudrate), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "check-camera":
+        print(json.dumps(_check_camera(args.device, args.out), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "collect":
+        path = _collect_from_hardware(args)
         print(path)
         return 0
     raise AssertionError(f"unknown command: {args.command}")
@@ -185,6 +218,40 @@ def _coerce_row(row: dict) -> dict:
 
 def _project_root() -> Path:
     return Path(__file__).resolve().parents[1]
+
+
+def _check_imu(bus_number: int) -> dict:
+    from .hardware.imu_mpu6050 import MPU6050Reader
+
+    return MPU6050Reader(bus_number=bus_number).health_check()
+
+
+def _check_gps(port: str, baudrate: int) -> dict:
+    from .hardware.gps_neo_m8n import NEOM8NReader
+
+    return NEOM8NReader(port=port, baudrate=baudrate).health_check()
+
+
+def _check_camera(device: str, output_dir: Path) -> dict:
+    from .hardware.camera_usb import USBCamera
+
+    return USBCamera(device=device).health_check(output_dir)
+
+
+def _collect_from_hardware(args) -> Path:
+    from .hardware.camera_usb import USBCamera
+    from .hardware.gps_neo_m8n import NEOM8NReader
+    from .hardware.imu_mpu6050 import MPU6050Reader
+
+    return collector.run_sensor_collection(
+        args.out,
+        imu_reader=MPU6050Reader(),
+        gps_reader=NEOM8NReader(port=args.gps_port, baudrate=args.gps_baudrate),
+        camera=USBCamera(device=args.camera_device),
+        duration_seconds=args.duration,
+        sample_rate_hz=args.rate,
+        model_path=args.model,
+    )
 
 
 if __name__ == "__main__":
