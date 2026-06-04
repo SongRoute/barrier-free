@@ -16,6 +16,7 @@
 - `barrier_free/__init__.py`: 패키지 공개 버전.
 - `barrier_free/schema.py`: 세션 파일 검증, CSV/JSON 읽기 쓰기.
 - `barrier_free/mock_data.py`: deterministic mock before/after 세션 생성.
+- `barrier_free/labels.py`: mock/현장 라벨을 IMU 창과 매칭하고 `exclude`를 제외.
 - `barrier_free/features.py`: 1초 IMU 창 분할과 특징 추출.
 - `barrier_free/model.py`: 작은 Random Forest 스타일 분류기 학습, 예측, 저장/로드.
 - `barrier_free/segments.py`: 10 m segment id, 구간 집계, before/after 비교.
@@ -109,7 +110,7 @@ def test_mock_before_after_sessions_are_deterministic(self):
 
 - [ ] **Step 3: 최소 구현**
 
-`schema.py`에는 필수 컬럼 상수와 `validate_session_bundle(bundle)`을 둔다.
+`schema.py`에는 필수 컬럼 상수, `labels` 계약, `candidate` 원본 수집 이벤트 허용, `validate_session_bundle(bundle)`을 둔다.
 
 `mock_data.py`에는 `build_demo_dataset(seed=42)`를 둔다. 반환 구조:
 
@@ -120,6 +121,7 @@ def test_mock_before_after_sessions_are_deterministic(self):
         "raw_imu": [{...}],
         "gps": [{...}],
         "events": [{...}],
+        "labels": [{...}],
     },
     "after": {
         "session": {...},
@@ -188,10 +190,11 @@ git add barrier_free/features.py tests/test_features.py
 git commit -m "feat: extract IMU window features"
 ```
 
-## Task 4: 모델 학습과 예측
+## Task 4: 라벨 매칭, 모델 학습과 예측
 
 **파일:**
 
+- 생성: `barrier_free/labels.py`
 - 생성: `barrier_free/model.py`
 - 생성: `tests/test_model.py`
 
@@ -204,9 +207,30 @@ def test_model_predicts_known_mock_classes(self):
     clf = model.TinyForestClassifier(tree_count=9, seed=7)
     clf.fit(training_rows)
     predictions = {clf.predict(row["features"])["prediction"] for row in training_rows}
-    self.assertIn("caution", predictions | {"caution"})
-    self.assertIn("danger", predictions | {"danger"})
+    self.assertLessEqual({"caution", "danger"}, predictions)
     self.assertIn(clf.predict(training_rows[0]["features"])["prediction"], {"normal", "caution", "danger"})
+```
+
+추가 실패 테스트:
+
+```python
+def test_excluded_labels_do_not_enter_training_rows(self):
+    dataset = mock_data.build_demo_dataset(seed=7)
+    rows = model.training_rows_from_bundle(dataset["before"])
+    self.assertNotIn("exclude", {row["label"] for row in rows})
+
+def test_model_roundtrip_and_metrics(self):
+    dataset = mock_data.build_demo_dataset(seed=7)
+    training_rows = model.training_rows_from_bundle(dataset["before"])
+    clf = model.TinyForestClassifier(tree_count=9, seed=7).fit(training_rows)
+    restored = model.TinyForestClassifier.from_json(clf.to_json())
+    self.assertEqual(
+        clf.predict(training_rows[0]["features"]),
+        restored.predict(training_rows[0]["features"]),
+    )
+    metrics = model.evaluate(clf, training_rows)
+    self.assertIn("confusion_matrix", metrics)
+    self.assertIn("recall", metrics)
 ```
 
 - [ ] **Step 2: 실패 확인**
@@ -217,7 +241,7 @@ def test_model_predicts_known_mock_classes(self):
 
 - [ ] **Step 3: 최소 구현**
 
-`TinyForestClassifier`는 seed로 feature threshold tree 여러 개를 만들고 다수결로 예측한다. 저장/로드는 JSON으로 한다.
+`labels.py`는 라벨을 1초 IMU window에 매칭하고 `exclude`를 제외한다. `TinyForestClassifier`는 seed로 feature threshold tree 여러 개를 만들고 다수결로 예측한다. 저장/로드는 JSON으로 한다. 평가 결과는 confusion matrix와 class별 recall을 포함한다.
 
 - [ ] **Step 4: 통과 확인**
 
@@ -228,7 +252,7 @@ def test_model_predicts_known_mock_classes(self):
 - [ ] **Step 5: 커밋**
 
 ```bash
-git add barrier_free/model.py tests/test_model.py
+git add barrier_free/labels.py barrier_free/model.py tests/test_model.py
 git commit -m "feat: train lightweight risk classifier"
 ```
 
@@ -304,7 +328,7 @@ def test_collector_demo_writes_session_files(self):
 
 - [ ] **Step 3: 최소 구현**
 
-`run_mock_collection(output_dir, seed)`가 mock sensor stream으로 세션 폴더를 쓰게 한다. `python3 -m barrier_free.cli demo --out demo_sessions` 명령을 제공한다.
+`run_mock_collection(output_dir, seed, model_path=None)`가 mock sensor stream으로 세션 폴더를 쓰게 한다. `model_path=None`이면 `prediction=candidate` raw 후보를 기록하고, 모델 경로가 있으면 실제 `features.py`와 `model.py`를 사용해 `caution`/`danger` 이벤트를 기록한다. `python3 -m barrier_free.cli demo --out demo_sessions` 명령을 제공한다.
 
 - [ ] **Step 4: 통과 확인**
 
@@ -349,7 +373,9 @@ def test_export_web_demo_contains_comparison_json(self):
 
 - [ ] **Step 3: 최소 구현**
 
-`export_demo(out, seed)`는 `web/demo_data.json` 또는 지정 폴더의 JSON을 만든다. 웹은 이 JSON을 fetch해서 경로, 이벤트, 구간 비교를 표시한다.
+`export_demo(out, seed)`는 지정한 out 폴더에 `demo_data.json`을 만든다. CLI의 기본 데모 명령은 같은 payload를 `web/demo_data.json`에도 복사한다. `web/app.js`는 항상 `demo_data.json`을 fetch한다.
+
+정적 smoke 테스트는 `web/index.html`에 `id="map"`, `id="session-list"`, Leaflet CDN, `app.js`가 있는지 확인한다. `web/app.js`는 `L.map`, segment layer, event marker 렌더링 함수를 포함해야 한다.
 
 - [ ] **Step 4: 통과 확인**
 
@@ -377,9 +403,11 @@ git commit -m "feat: add manager map demo"
 def test_end_to_end_demo_pipeline(self):
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp)
-        demo_json = cli.export_demo(out, seed=42)
+        demo_json = cli.run_end_to_end_demo(out, seed=42)
         payload = json.loads(demo_json.read_text(encoding="utf-8"))
         self.assertEqual(len(payload["sessions"]), 2)
+        self.assertIn("model", payload)
+        self.assertGreater(payload["model"]["training_rows"], 0)
         self.assertTrue(any(row["status"] in {"improved", "worsened", "new_risk"} for row in payload["comparison"]))
 ```
 
@@ -394,7 +422,7 @@ def test_end_to_end_demo_pipeline(self):
 README에 다음 실행 명령을 포함한다.
 
 ```bash
-python3 -m unittest -v
+python3 -m unittest discover -s tests -v
 python3 -m barrier_free.cli demo --out demo_sessions
 python3 -m http.server 8000
 ```
@@ -404,12 +432,12 @@ python3 -m http.server 8000
 실행:
 
 ```bash
-python3 -m unittest -v
+python3 -m unittest discover -s tests -v
 python3 -m barrier_free.cli demo --out demo_sessions
 python3 -m http.server 8000
 ```
 
-예상: 테스트는 `OK`, demo 세션 JSON 생성, `http://localhost:8000/web/`에서 지도 확인 가능
+예상: 테스트는 `OK`, demo 세션 JSON 생성. HTTP 서버는 검증 명령과 별도로 필요할 때 실행하고, `http://localhost:8000/web/`에서 지도 확인 가능
 
 - [ ] **Step 5: 커밋**
 
@@ -421,4 +449,3 @@ git commit -m "docs: document end-to-end MVP workflow"
 ## 실행 방식
 
 사용자가 이미 sub-agent 적극 활용과 TDD 개발을 요청했으므로 기본 실행 방식은 **Subagent-Driven**이다. 단, 같은 파일을 동시에 수정하는 작업은 충돌을 피하기 위해 순차 처리한다. 독립적인 리뷰와 검증은 sub-agent에 병렬로 맡긴다.
-

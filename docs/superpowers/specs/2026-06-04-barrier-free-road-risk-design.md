@@ -153,6 +153,7 @@ sessions/2026-06-12_before_run01/
   raw_imu.csv
   gps.csv
   events.csv
+  labels.csv
   photos/
   session.json
 ```
@@ -217,6 +218,27 @@ GPS가 invalid여도 행은 계속 쓴다. 마지막 좌표를 유지할 수 있
 - `model_version`
 
 `prediction`은 `normal`, `caution`, `danger`를 사용한다. 실제 이벤트 파일은 보통 `caution`과 `danger`만 포함하지만, 테스트와 디버깅을 위해 `normal`도 허용한다.
+
+모델 없이 초기 후보만 찾는 원본 수집 모드에서는 `prediction=candidate`, `model_version=none`을 허용한다. 이 값은 학습용 정답이 아니며, 현장 측정 라벨과 연결되기 전에는 관리자 지도에서 `후보`로만 표시한다.
+
+### `labels.csv`
+
+컬럼:
+
+- `label_id`
+- `event_id`
+- `timestamp_start`
+- `timestamp_end`
+- `lat`
+- `lon`
+- `label`
+- `step_height_mm`
+- `crack_width_mm`
+- `pothole_depth_mm`
+- `non_road_shock`
+- `notes`
+
+`label`은 `normal`, `caution`, `danger`, `exclude`를 사용한다. `exclude`는 모델 학습 데이터에서 제외한다.
 
 ## 라벨 정책
 
@@ -344,13 +366,17 @@ Raspberry Pi 수집기:
 중요 테스트:
 
 - mock 세션 생성기가 seed로 재현 가능한 세션을 만든다.
+- mock 세션은 `labels.csv`에 해당하는 라벨 행을 포함한다.
 - 작은 synthetic IMU 창에서 특징 추출값이 기대값과 일치한다.
 - 라벨 매칭이 현장 라벨을 올바른 GPS/IMU 창에 연결한다.
 - `exclude` 라벨은 학습 데이터에 들어가지 않는다.
 - 모델 학습 결과가 기대한 class vocabulary로 prediction을 만든다.
+- 모델 저장/로드 후 동일한 입력에 같은 prediction을 만든다.
+- 모델 평가 결과가 confusion matrix와 class별 recall을 포함한다.
 - 구간 집계가 이벤트를 안정적인 10 m bucket으로 묶는다.
 - before/after 비교가 개선, 악화, 새 위험, 깨끗한 구간, before score 0을 처리한다.
 - 지도 CSV/JSON 파싱은 잘못된 데이터를 거부하고 올바른 mock 세션을 받아들인다.
+- 최종 E2E 테스트는 `mock 생성 → label/window 매칭 → feature 추출 → 모델 학습/export → collector inference 세션 생성 → web payload export` 전체 순서를 실행한다.
 
 ## Sub-Agent 구현 전략
 
