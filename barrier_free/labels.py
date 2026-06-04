@@ -34,7 +34,11 @@ def _window_for_label(windows: list[list[dict]], label: dict) -> list[dict]:
     target = (label["timestamp_start"] + label["timestamp_end"]) / 2
     if not windows:
         return []
-    return min(
+    nearest = min(
         windows,
         key=lambda window: abs(((window[0]["timestamp"] + window[-1]["timestamp"]) / 2) - target),
     )
+    nearest_middle = (nearest[0]["timestamp"] + nearest[-1]["timestamp"]) / 2
+    if abs(nearest_middle - target) > 0.75:
+        return []
+    return nearest

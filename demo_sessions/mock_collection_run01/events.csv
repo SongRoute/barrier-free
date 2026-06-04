@@ -1,7 +1,7 @@
 event_id,timestamp_start,timestamp_end,lat,lon,gps_valid,speed_mps,prediction,confidence,risk_score,segment_id,photo_before,photo_after,model_version
-mock_collection_event_05,1781258404.0,1781258404.95,36.6282,127.456125,1,2.463,danger,0.909,0.773,,photos/mock_collection_event_05_before.jpg,photos/mock_collection_event_05_after.jpg,tiny-forest-mock
-mock_collection_event_06,1781258405.0,1781258405.95,36.62825,127.4561522,1,2.846,danger,1.0,0.848,,photos/mock_collection_event_06_before.jpg,photos/mock_collection_event_06_after.jpg,tiny-forest-mock
-mock_collection_event_09,1781258408.0,1781258408.95,36.6284,127.4562165,1,2.528,danger,0.909,0.771,,photos/mock_collection_event_09_before.jpg,photos/mock_collection_event_09_after.jpg,tiny-forest-mock
-mock_collection_event_12,1781258411.0,1781258411.95,36.62855,127.4562479,1,2.429,caution,1.0,0.549,,photos/mock_collection_event_12_before.jpg,photos/mock_collection_event_12_after.jpg,tiny-forest-mock
-mock_collection_event_18,1781258417.0,1781258417.95,36.62885,127.4561983,1,2.858,caution,0.727,0.399,,photos/mock_collection_event_18_before.jpg,photos/mock_collection_event_18_after.jpg,tiny-forest-mock
-mock_collection_event_19,1781258418.0,1781258418.95,36.6289,127.4561768,1,3.061,danger,1.0,0.848,,photos/mock_collection_event_19_before.jpg,photos/mock_collection_event_19_after.jpg,tiny-forest-mock
+mock_collection_event_05,1781258404.0,1781258404.95,36.6282,127.456125,1,2.63,danger,0.909,0.771,,photos/mock_collection_event_05_before.jpg,photos/mock_collection_event_05_after.jpg,tiny-forest-mock
+mock_collection_event_06,1781258405.0,1781258405.95,36.62825,127.4561522,1,2.746,danger,0.636,0.539,,photos/mock_collection_event_06_before.jpg,photos/mock_collection_event_06_after.jpg,tiny-forest-mock
+mock_collection_event_09,1781258408.0,1781258408.95,36.6284,127.4562165,1,3.138,danger,1.0,0.847,,photos/mock_collection_event_09_before.jpg,photos/mock_collection_event_09_after.jpg,tiny-forest-mock
+mock_collection_event_12,1781258411.0,1781258411.95,36.62855,127.4562479,1,2.982,caution,0.727,0.399,,photos/mock_collection_event_12_before.jpg,photos/mock_collection_event_12_after.jpg,tiny-forest-mock
+mock_collection_event_18,1781258417.0,1781258417.95,36.62885,127.4561983,1,2.445,caution,0.818,0.449,,photos/mock_collection_event_18_before.jpg,photos/mock_collection_event_18_after.jpg,tiny-forest-mock
+mock_collection_event_19,1781258418.0,1781258418.95,36.6289,127.4561768,1,2.886,danger,1.0,0.847,,photos/mock_collection_event_19_before.jpg,photos/mock_collection_event_19_after.jpg,tiny-forest-mock

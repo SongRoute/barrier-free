@@ -16,16 +16,13 @@ class EndToEndTest(unittest.TestCase):
 
             self.assertEqual(len(payload["sessions"]), 2)
             self.assertEqual(payload["collector"]["session_id"], "mock_collection_run01")
+            self.assertEqual(payload["collector"]["seed"], 43)
             self.assertGreater(payload["model"]["training_rows"], 0)
             before_events = payload["sessions"][0]["events"]
             self.assertGreater(len(before_events), 0)
             self.assertTrue({event["prediction"] for event in before_events} <= {"caution", "danger"})
-            self.assertTrue(
-                any(
-                    row["status"] in {"improved", "worsened", "new_risk", "not_comparable"}
-                    for row in payload["comparison"]
-                )
-            )
+            statuses = {row["status"] for row in payload["comparison"]}
+            self.assertIn("improved", statuses)
             self.assertTrue((out / "model.json").exists())
             self.assertTrue((out / "mock_collection_run01" / "events.csv").exists())
 

@@ -28,6 +28,7 @@
   },
   "collector": {
     "session_id": "mock_collection_run01",
+    "seed": 43,
     "path": "demo_sessions/mock_collection_run01"
   },
   "sessions": [
@@ -50,168 +51,168 @@
           "lat": 36.628,
           "lon": 127.456,
           "gps_valid": 1,
-          "speed_mps": 2.327
+          "speed_mps": 2.689
         },
         {
           "timestamp": 1781258401.0,
           "lat": 36.62805,
           "lon": 127.4560326,
           "gps_valid": 1,
-          "speed_mps": 2.68
+          "speed_mps": 2.54
         },
         {
           "timestamp": 1781258402.0,
           "lat": 36.6281,
           "lon": 127.4560647,
           "gps_valid": 1,
-          "speed_mps": 2.947
+          "speed_mps": 2.76
         },
         {
           "timestamp": 1781258403.0,
           "lat": 36.62815,
           "lon": 127.4560957,
           "gps_valid": 1,
-          "speed_mps": 2.392
+          "speed_mps": 3.192
         },
         {
           "timestamp": 1781258404.0,
           "lat": 36.6282,
           "lon": 127.456125,
           "gps_valid": 1,
-          "speed_mps": 2.463
+          "speed_mps": 2.63
         },
         {
           "timestamp": 1781258405.0,
           "lat": 36.62825,
           "lon": 127.4561522,
           "gps_valid": 1,
-          "speed_mps": 2.846
+          "speed_mps": 2.746
         },
         {
           "timestamp": 1781258406.0,
           "lat": 36.6283,
           "lon": 127.4561768,
           "gps_valid": 1,
-          "speed_mps": 2.965
+          "speed_mps": 2.386
         },
         {
           "timestamp": 1781258407.0,
           "lat": 36.62835,
           "lon": 127.4561983,
           "gps_valid": 1,
-          "speed_mps": 2.605
+          "speed_mps": 3.167
         },
         {
           "timestamp": 1781258408.0,
           "lat": 36.6284,
           "lon": 127.4562165,
           "gps_valid": 1,
-          "speed_mps": 2.528
+          "speed_mps": 3.138
         },
         {
           "timestamp": 1781258409.0,
           "lat": 36.62845,
           "lon": 127.456231,
           "gps_valid": 0,
-          "speed_mps": 2.587
+          "speed_mps": 2.901
         },
         {
           "timestamp": 1781258410.0,
           "lat": 36.6285,
           "lon": 127.4562415,
           "gps_valid": 1,
-          "speed_mps": 2.381
+          "speed_mps": 2.891
         },
         {
           "timestamp": 1781258411.0,
           "lat": 36.62855,
           "lon": 127.4562479,
           "gps_valid": 1,
-          "speed_mps": 2.429
+          "speed_mps": 2.982
         },
         {
           "timestamp": 1781258412.0,
           "lat": 36.6286,
           "lon": 127.45625,
           "gps_valid": 1,
-          "speed_mps": 2.446
+          "speed_mps": 2.988
         },
         {
           "timestamp": 1781258413.0,
           "lat": 36.62865,
           "lon": 127.4562479,
           "gps_valid": 1,
-          "speed_mps": 2.909
+          "speed_mps": 2.527
         },
         {
           "timestamp": 1781258414.0,
           "lat": 36.6287,
           "lon": 127.4562415,
           "gps_valid": 1,
-          "speed_mps": 2.301
+          "speed_mps": 2.772
         },
         {
           "timestamp": 1781258415.0,
           "lat": 36.62875,
           "lon": 127.456231,
           "gps_valid": 1,
-          "speed_mps": 3.112
+          "speed_mps": 2.564
         },
         {
           "timestamp": 1781258416.0,
           "lat": 36.6288,
           "lon": 127.4562165,
           "gps_valid": 1,
-          "speed_mps": 2.833
+          "speed_mps": 3.114
         },
         {
           "timestamp": 1781258417.0,
           "lat": 36.62885,
           "lon": 127.4561983,
           "gps_valid": 1,
-          "speed_mps": 2.858
+          "speed_mps": 2.445
         },
         {
           "timestamp": 1781258418.0,
           "lat": 36.6289,
           "lon": 127.4561768,
           "gps_valid": 1,
-          "speed_mps": 3.061
+          "speed_mps": 2.886
         },
         {
           "timestamp": 1781258419.0,
           "lat": 36.62895,
           "lon": 127.4561522,
           "gps_valid": 1,
-          "speed_mps": 3.017
+          "speed_mps": 2.676
         },
         {
           "timestamp": 1781258420.0,
           "lat": 36.629,
           "lon": 127.456125,
           "gps_valid": 0,
-          "speed_mps": 2.445
+          "speed_mps": 2.807
         },
         {
           "timestamp": 1781258421.0,
           "lat": 36.62905,
           "lon": 127.4560957,
           "gps_valid": 1,
-          "speed_mps": 2.881
+          "speed_mps": 2.348
         },
         {
           "timestamp": 1781258422.0,
           "lat": 36.6291,
           "lon": 127.4560647,
           "gps_valid": 1,
-          "speed_mps": 2.754
+          "speed_mps": 3.036
         },
         {
           "timestamp": 1781258423.0,
           "lat": 36.62915,
           "lon": 127.4560326,
           "gps_valid": 1,
-          "speed_mps": 2.482
+          "speed_mps": 3.115
         }
       ],
       "events": [
@@ -222,10 +223,10 @@
           "lat": 36.6282,
           "lon": 127.456125,
           "gps_valid": 1,
-          "speed_mps": 2.463,
+          "speed_mps": 2.63,
           "prediction": "danger",
           "confidence": 0.909,
-          "risk_score": 0.773,
+          "risk_score": 0.771,
           "segment_id": "",
           "photo_before": "photos/mock_collection_event_05_before.jpg",
           "photo_after": "photos/mock_collection_event_05_after.jpg",
@@ -238,10 +239,10 @@
           "lat": 36.62825,
           "lon": 127.4561522,
           "gps_valid": 1,
-          "speed_mps": 2.846,
+          "speed_mps": 2.746,
           "prediction": "danger",
-          "confidence": 1.0,
-          "risk_score": 0.848,
+          "confidence": 0.636,
+          "risk_score": 0.539,
           "segment_id": "",
           "photo_before": "photos/mock_collection_event_06_before.jpg",
           "photo_after": "photos/mock_collection_event_06_after.jpg",
@@ -254,10 +255,10 @@
           "lat": 36.6284,
           "lon": 127.4562165,
           "gps_valid": 1,
-          "speed_mps": 2.528,
+          "speed_mps": 3.138,
           "prediction": "danger",
-          "confidence": 0.909,
-          "risk_score": 0.771,
+          "confidence": 1.0,
+          "risk_score": 0.847,
           "segment_id": "",
           "photo_before": "photos/mock_collection_event_09_before.jpg",
           "photo_after": "photos/mock_collection_event_09_after.jpg",
@@ -270,10 +271,10 @@
           "lat": 36.62855,
           "lon": 127.4562479,
           "gps_valid": 1,
-          "speed_mps": 2.429,
+          "speed_mps": 2.982,
           "prediction": "caution",
-          "confidence": 1.0,
-          "risk_score": 0.549,
+          "confidence": 0.727,
+          "risk_score": 0.399,
           "segment_id": "",
           "photo_before": "photos/mock_collection_event_12_before.jpg",
           "photo_after": "photos/mock_collection_event_12_after.jpg",
@@ -286,10 +287,10 @@
           "lat": 36.62885,
           "lon": 127.4561983,
           "gps_valid": 1,
-          "speed_mps": 2.858,
+          "speed_mps": 2.445,
           "prediction": "caution",
-          "confidence": 0.727,
-          "risk_score": 0.399,
+          "confidence": 0.818,
+          "risk_score": 0.449,
           "segment_id": "",
           "photo_before": "photos/mock_collection_event_18_before.jpg",
           "photo_after": "photos/mock_collection_event_18_after.jpg",
@@ -302,10 +303,10 @@
           "lat": 36.6289,
           "lon": 127.4561768,
           "gps_valid": 1,
-          "speed_mps": 3.061,
+          "speed_mps": 2.886,
           "prediction": "danger",
           "confidence": 1.0,
-          "risk_score": 0.848,
+          "risk_score": 0.847,
           "segment_id": "",
           "photo_before": "photos/mock_collection_event_19_before.jpg",
           "photo_after": "photos/mock_collection_event_19_after.jpg",
@@ -318,51 +319,93 @@
           "segment_meters": 10,
           "event_count": 1,
           "risk_candidate_count": 1,
-          "max_risk_score": 0.773,
-          "avg_risk_score": 0.773,
+          "max_risk_score": 0.771,
+          "avg_risk_score": 0.771,
           "repeated_detection_ratio": 1.0,
           "risk_level": "danger",
           "center_lat": 36.6282,
-          "center_lon": 127.456125
+          "center_lon": 127.456125,
+          "events": [
+            {
+              "event_id": "mock_collection_event_05",
+              "timestamp_start": 1781258404.0,
+              "timestamp_end": 1781258404.95,
+              "lat": 36.6282,
+              "lon": 127.456125,
+              "gps_valid": 1,
+              "speed_mps": 2.63,
+              "prediction": "danger",
+              "confidence": 0.909,
+              "risk_score": 0.771,
+              "segment_id": "",
+              "photo_before": "photos/mock_collection_event_05_before.jpg",
+              "photo_after": "photos/mock_collection_event_05_after.jpg",
+              "model_version": "tiny-forest-mock"
+            }
+          ]
         },
         {
           "segment_id": "10m:407745:1138653",
           "segment_meters": 10,
           "event_count": 1,
           "risk_candidate_count": 1,
-          "max_risk_score": 0.848,
-          "avg_risk_score": 0.848,
+          "max_risk_score": 0.539,
+          "avg_risk_score": 0.539,
           "repeated_detection_ratio": 1.0,
-          "risk_level": "danger",
+          "risk_level": "caution",
           "center_lat": 36.62825,
-          "center_lon": 127.4561522
+          "center_lon": 127.4561522,
+          "events": [
+            {
+              "event_id": "mock_collection_event_06",
+              "timestamp_start": 1781258405.0,
+              "timestamp_end": 1781258405.95,
+              "lat": 36.62825,
+              "lon": 127.4561522,
+              "gps_valid": 1,
+              "speed_mps": 2.746,
+              "prediction": "danger",
+              "confidence": 0.636,
+              "risk_score": 0.539,
+              "segment_id": "",
+              "photo_before": "photos/mock_collection_event_06_before.jpg",
+              "photo_after": "photos/mock_collection_event_06_after.jpg",
+              "model_version": "tiny-forest-mock"
+            }
+          ]
         },
         {
           "segment_id": "10m:407747:1138652",
           "segment_meters": 10,
           "event_count": 1,
           "risk_candidate_count": 1,
-          "max_risk_score": 0.771,
-          "avg_risk_score": 0.771,
+          "max_risk_score": 0.847,
+          "avg_risk_score": 0.847,
           "repeated_detection_ratio": 1.0,
           "risk_level": "danger",
           "center_lat": 36.6284,
-          "center_lon": 127.4562165
+          "center_lon": 127.4562165,
+          "events": [
+            {
+              "event_id": "mock_collection_event_09",
+              "timestamp_start": 1781258408.0,
+              "timestamp_end": 1781258408.95,
+              "lat": 36.6284,
+              "lon": 127.4562165,
+              "gps_valid": 1,
+              "speed_mps": 3.138,
+              "prediction": "danger",
+              "confidence": 1.0,
+              "risk_score": 0.847,
+              "segment_id": "",
+              "photo_before": "photos/mock_collection_event_09_before.jpg",
+              "photo_after": "photos/mock_collection_event_09_after.jpg",
+              "model_version": "tiny-forest-mock"
+            }
+          ]
         },
         {
           "segment_id": "10m:407749:1138650",
-          "segment_meters": 10,
-          "event_count": 1,
-          "risk_candidate_count": 1,
-          "max_risk_score": 0.549,
-          "avg_risk_score": 0.549,
-          "repeated_detection_ratio": 1.0,
-          "risk_level": "caution",
-          "center_lat": 36.62855,
-          "center_lon": 127.4562479
-        },
-        {
-          "segment_id": "10m:407752:1138645",
           "segment_meters": 10,
           "event_count": 1,
           "risk_candidate_count": 1,
@@ -370,20 +413,86 @@
           "avg_risk_score": 0.399,
           "repeated_detection_ratio": 1.0,
           "risk_level": "caution",
+          "center_lat": 36.62855,
+          "center_lon": 127.4562479,
+          "events": [
+            {
+              "event_id": "mock_collection_event_12",
+              "timestamp_start": 1781258411.0,
+              "timestamp_end": 1781258411.95,
+              "lat": 36.62855,
+              "lon": 127.4562479,
+              "gps_valid": 1,
+              "speed_mps": 2.982,
+              "prediction": "caution",
+              "confidence": 0.727,
+              "risk_score": 0.399,
+              "segment_id": "",
+              "photo_before": "photos/mock_collection_event_12_before.jpg",
+              "photo_after": "photos/mock_collection_event_12_after.jpg",
+              "model_version": "tiny-forest-mock"
+            }
+          ]
+        },
+        {
+          "segment_id": "10m:407752:1138645",
+          "segment_meters": 10,
+          "event_count": 1,
+          "risk_candidate_count": 1,
+          "max_risk_score": 0.449,
+          "avg_risk_score": 0.449,
+          "repeated_detection_ratio": 1.0,
+          "risk_level": "caution",
           "center_lat": 36.62885,
-          "center_lon": 127.4561983
+          "center_lon": 127.4561983,
+          "events": [
+            {
+              "event_id": "mock_collection_event_18",
+              "timestamp_start": 1781258417.0,
+              "timestamp_end": 1781258417.95,
+              "lat": 36.62885,
+              "lon": 127.4561983,
+              "gps_valid": 1,
+              "speed_mps": 2.445,
+              "prediction": "caution",
+              "confidence": 0.818,
+              "risk_score": 0.449,
+              "segment_id": "",
+              "photo_before": "photos/mock_collection_event_18_before.jpg",
+              "photo_after": "photos/mock_collection_event_18_after.jpg",
+              "model_version": "tiny-forest-mock"
+            }
+          ]
         },
         {
           "segment_id": "10m:407752:1138644",
           "segment_meters": 10,
           "event_count": 1,
           "risk_candidate_count": 1,
-          "max_risk_score": 0.848,
-          "avg_risk_score": 0.848,
+          "max_risk_score": 0.847,
+          "avg_risk_score": 0.847,
           "repeated_detection_ratio": 1.0,
           "risk_level": "danger",
           "center_lat": 36.6289,
-          "center_lon": 127.4561768
+          "center_lon": 127.4561768,
+          "events": [
+            {
+              "event_id": "mock_collection_event_19",
+              "timestamp_start": 1781258418.0,
+              "timestamp_end": 1781258418.95,
+              "lat": 36.6289,
+              "lon": 127.4561768,
+              "gps_valid": 1,
+              "speed_mps": 2.886,
+              "prediction": "danger",
+              "confidence": 1.0,
+              "risk_score": 0.847,
+              "segment_id": "",
+              "photo_before": "photos/mock_collection_event_19_before.jpg",
+              "photo_after": "photos/mock_collection_event_19_after.jpg",
+              "model_version": "tiny-forest-mock"
+            }
+          ]
         }
       ]
     },
@@ -599,7 +708,25 @@
           "repeated_detection_ratio": 1.0,
           "risk_level": "caution",
           "center_lat": 36.6282,
-          "center_lon": 127.456125
+          "center_lon": 127.456125,
+          "events": [
+            {
+              "event_id": "demo_after_run01_event_01",
+              "timestamp_start": 1781258404.0,
+              "timestamp_end": 1781258405.0,
+              "lat": 36.6282,
+              "lon": 127.456125,
+              "gps_valid": 1,
+              "speed_mps": 2.403,
+              "prediction": "caution",
+              "confidence": 0.67,
+              "risk_score": 0.4,
+              "segment_id": "",
+              "photo_before": "photos/demo_after_run01_event_01_before.jpg",
+              "photo_after": "photos/demo_after_run01_event_01_after.jpg",
+              "model_version": "mock-model-v1"
+            }
+          ]
         }
       ]
     }
@@ -607,21 +734,21 @@
   "comparison": [
     {
       "segment_id": "10m:407745:1138653",
-      "status": "not_comparable",
-      "before_score": 0.848,
-      "after_score": null,
-      "improvement_rate": null,
+      "status": "improved",
+      "before_score": 0.539,
+      "after_score": 0.0,
+      "improvement_rate": 1.0,
       "before_event_count": 1,
       "after_event_count": 0,
-      "before_risk_level": "danger",
+      "before_risk_level": "caution",
       "after_risk_level": null
     },
     {
       "segment_id": "10m:407745:1138654",
       "status": "improved",
-      "before_score": 0.773,
+      "before_score": 0.771,
       "after_score": 0.4,
-      "improvement_rate": 0.48253557567917205,
+      "improvement_rate": 0.48119325551232167,
       "before_event_count": 1,
       "after_event_count": 1,
       "before_risk_level": "danger",
@@ -629,10 +756,10 @@
     },
     {
       "segment_id": "10m:407747:1138652",
-      "status": "not_comparable",
-      "before_score": 0.771,
-      "after_score": null,
-      "improvement_rate": null,
+      "status": "improved",
+      "before_score": 0.847,
+      "after_score": 0.0,
+      "improvement_rate": 1.0,
       "before_event_count": 1,
       "after_event_count": 0,
       "before_risk_level": "danger",
@@ -640,10 +767,10 @@
     },
     {
       "segment_id": "10m:407749:1138650",
-      "status": "not_comparable",
-      "before_score": 0.549,
-      "after_score": null,
-      "improvement_rate": null,
+      "status": "improved",
+      "before_score": 0.399,
+      "after_score": 0.0,
+      "improvement_rate": 1.0,
       "before_event_count": 1,
       "after_event_count": 0,
       "before_risk_level": "caution",
@@ -651,10 +778,10 @@
     },
     {
       "segment_id": "10m:407752:1138644",
-      "status": "not_comparable",
-      "before_score": 0.848,
-      "after_score": null,
-      "improvement_rate": null,
+      "status": "improved",
+      "before_score": 0.847,
+      "after_score": 0.0,
+      "improvement_rate": 1.0,
       "before_event_count": 1,
       "after_event_count": 0,
       "before_risk_level": "danger",
@@ -662,10 +789,10 @@
     },
     {
       "segment_id": "10m:407752:1138645",
-      "status": "not_comparable",
-      "before_score": 0.399,
-      "after_score": null,
-      "improvement_rate": null,
+      "status": "improved",
+      "before_score": 0.449,
+      "after_score": 0.0,
+      "improvement_rate": 1.0,
       "before_event_count": 1,
       "after_event_count": 0,
       "before_risk_level": "caution",

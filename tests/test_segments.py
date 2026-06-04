@@ -36,6 +36,7 @@ class SegmentTest(unittest.TestCase):
         self.assertAlmostEqual(row["avg_risk_score"], (0.80 + 0.50 + 0.0) / 3)
         self.assertAlmostEqual(row["repeated_detection_ratio"], 2 / 3)
         self.assertEqual(row["risk_level"], "danger")
+        self.assertEqual(len(row["events"]), 3)
 
     def test_compare_before_after_statuses_and_improvement_rate(self):
         clean = "clean"
@@ -68,7 +69,8 @@ class SegmentTest(unittest.TestCase):
         self.assertAlmostEqual(comparison[worsened]["improvement_rate"], -1.0)
         self.assertEqual(comparison[new_risk]["status"], "new_risk")
         self.assertIsNone(comparison[new_risk]["improvement_rate"])
-        self.assertEqual(comparison[missing_after]["status"], "not_comparable")
+        self.assertEqual(comparison[missing_after]["status"], "improved")
+        self.assertAlmostEqual(comparison[missing_after]["improvement_rate"], 1.0)
 
     def test_mock_before_after_reports_improvement(self):
         dataset = mock_data.build_demo_dataset(seed=42)

@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "e2e-demo":
         path = run_end_to_end_demo(args.out, seed=args.seed)
-        web_path = Path("web") / "demo_data.json"
+        web_path = _project_root() / "web" / "demo_data.json"
         web_path.write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
         print(path)
         return 0
@@ -90,7 +90,8 @@ def run_end_to_end_demo(output_dir: Path, seed: int = 42) -> Path:
     model_path = output_dir / "model.json"
     model_path.write_text(classifier.to_json(), encoding="utf-8")
 
-    collector_path = collector.run_mock_collection(output_dir, seed=seed, model_path=model_path)
+    collector_seed = seed + 1
+    collector_path = collector.run_mock_collection(output_dir, seed=collector_seed, model_path=model_path)
     before_bundle = _read_session_folder(collector_path)
     after_bundle = dataset["after"]
 
@@ -108,6 +109,7 @@ def run_end_to_end_demo(output_dir: Path, seed: int = 42) -> Path:
         },
         "collector": {
             "session_id": before_bundle["session"]["session_id"],
+            "seed": collector_seed,
             "path": str(collector_path),
         },
         "sessions": [
@@ -179,6 +181,10 @@ def _coerce_row(row: dict) -> dict:
         else:
             result[key] = value
     return result
+
+
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[1]
 
 
 if __name__ == "__main__":

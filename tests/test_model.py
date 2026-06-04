@@ -17,6 +17,19 @@ class ModelTest(unittest.TestCase):
         )
         self.assertIn("accel_mag_max", training_rows[0]["features"])
 
+    def test_out_of_range_labels_do_not_match_nearest_window(self):
+        dataset = mock_data.build_demo_dataset(seed=7)
+        bundle = dataset["before"]
+        out_of_range = dict(bundle["labels"][0])
+        out_of_range["label_id"] = "outside"
+        out_of_range["timestamp_start"] = 1.0
+        out_of_range["timestamp_end"] = 2.0
+        bundle["labels"] = [out_of_range]
+
+        training_rows = model.training_rows_from_bundle(bundle)
+
+        self.assertEqual(training_rows, [])
+
     def test_model_predicts_known_mock_classes(self):
         dataset = mock_data.build_demo_dataset(seed=7)
         training_rows = model.training_rows_from_bundle(dataset["before"])

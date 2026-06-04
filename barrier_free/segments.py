@@ -57,6 +57,7 @@ def aggregate_events(events: Iterable[Mapping], segment_meters: int = 10) -> dic
                 "risk_level": "normal",
                 "center_lat": None,
                 "center_lon": None,
+                "events": [],
                 "_risk_score_total": 0.0,
                 "_lat_total": 0.0,
                 "_lon_total": 0.0,
@@ -65,6 +66,7 @@ def aggregate_events(events: Iterable[Mapping], segment_meters: int = 10) -> dic
         row["event_count"] += 1
         row["risk_candidate_count"] += int(is_risk_candidate)
         row["max_risk_score"] = max(row["max_risk_score"], score)
+        row["events"].append(dict(event))
         row["_risk_score_total"] += score
         row["_lat_total"] += float(event["lat"])
         row["_lon_total"] += float(event["lon"])
@@ -98,6 +100,8 @@ def compare_segments(before, after) -> list[dict]:
         after_row = after_by_segment.get(segment_id)
         before_score = _summary_score(before_row)
         after_score = _summary_score(after_row)
+        if before_row is not None and after_row is None:
+            after_score = 0.0
 
         comparison.append(
             {
