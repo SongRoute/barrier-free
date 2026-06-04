@@ -19,6 +19,28 @@ class MockDataTest(unittest.TestCase):
         for bundle in dataset.values():
             schema.validate_session_bundle(bundle)
 
+    def test_generated_sessions_include_labels(self):
+        dataset = mock_data.build_demo_dataset(seed=12)
+
+        before = dataset["before"]
+
+        self.assertIn("labels", before)
+        self.assertGreater(len(before["labels"]), 0)
+        self.assertLessEqual(
+            {label["label"] for label in before["labels"]},
+            {"normal", "caution", "danger", "exclude"},
+        )
+
+    def test_schema_accepts_raw_candidate_events(self):
+        dataset = mock_data.build_demo_dataset(seed=13)
+        bundle = dataset["before"]
+        candidate = dict(bundle["events"][0])
+        candidate["prediction"] = "candidate"
+        candidate["model_version"] = "none"
+        bundle["events"] = [candidate]
+
+        schema.validate_session_bundle(bundle)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -38,8 +38,23 @@ EVENT_FIELDS = (
     "photo_after",
     "model_version",
 )
+LABEL_FIELDS = (
+    "label_id",
+    "event_id",
+    "timestamp_start",
+    "timestamp_end",
+    "lat",
+    "lon",
+    "label",
+    "step_height_mm",
+    "crack_width_mm",
+    "pothole_depth_mm",
+    "non_road_shock",
+    "notes",
+)
 
-PREDICTIONS = {"normal", "caution", "danger"}
+PREDICTIONS = {"normal", "caution", "danger", "candidate"}
+LABELS = {"normal", "caution", "danger", "exclude"}
 PHASES = {"calibration", "before", "after", "demo"}
 
 
@@ -50,7 +65,7 @@ class SchemaError(ValueError):
 def validate_session_bundle(bundle: dict) -> None:
     """메모리상의 세션 bundle이 필수 구조를 만족하는지 검증한다."""
 
-    for key in ("session", "raw_imu", "gps", "events"):
+    for key in ("session", "raw_imu", "gps", "events", "labels"):
         if key not in bundle:
             raise SchemaError(f"missing bundle key: {key}")
 
@@ -64,10 +79,14 @@ def validate_session_bundle(bundle: dict) -> None:
     _validate_rows("raw_imu", bundle["raw_imu"], RAW_IMU_FIELDS)
     _validate_rows("gps", bundle["gps"], GPS_FIELDS)
     _validate_rows("events", bundle["events"], EVENT_FIELDS)
+    _validate_rows("labels", bundle["labels"], LABEL_FIELDS)
 
     for event in bundle["events"]:
         if event["prediction"] not in PREDICTIONS:
             raise SchemaError(f"invalid prediction: {event['prediction']}")
+    for label in bundle["labels"]:
+        if label["label"] not in LABELS:
+            raise SchemaError(f"invalid label: {label['label']}")
 
 
 def write_session_bundle(bundle: dict, output_dir: Path) -> Path:
@@ -83,6 +102,7 @@ def write_session_bundle(bundle: dict, output_dir: Path) -> Path:
     write_csv(output_dir / "raw_imu.csv", RAW_IMU_FIELDS, bundle["raw_imu"])
     write_csv(output_dir / "gps.csv", GPS_FIELDS, bundle["gps"])
     write_csv(output_dir / "events.csv", EVENT_FIELDS, bundle["events"])
+    write_csv(output_dir / "labels.csv", LABEL_FIELDS, bundle["labels"])
     (output_dir / "photos").mkdir(exist_ok=True)
     return output_dir
 
