@@ -1,152 +1,152 @@
-# Barrier-Free Campus Road Risk Design
+# 베리어프리 교내 도로 위험 후보 지도 설계
 
-## Purpose
+## 목적
 
-This project builds a practical MVP for a campus road manager map that highlights road segments likely to be difficult for small wheels, such as wheelchair front casters. The first version does not claim to prove wheelchair danger directly. It produces a "small-wheel mobility risk candidate map" that helps managers inspect, repair, and compare road conditions before and after maintenance.
+이 프로젝트는 교내 오래된 도로에서 작은 바퀴 이동체가 지나가기 어려울 수 있는 구간을 찾아 도로 관리자가 확인할 수 있는 MVP를 만든다. 첫 버전은 휠체어 위험을 확정 판정하지 않는다. 대신 관리자 점검과 정비 전후 비교를 돕는 **소형 바퀴 이동 위험 후보 지도**를 만든다.
 
-The embedded practice goal is to use Raspberry Pi 3B, IMU, GPS, and a webcam in a simple but realistic pipeline:
+임베디드 실습 목표는 Raspberry Pi 3B, IMU, GPS, 웹캠을 간단하지만 실제적인 흐름으로 연결하는 것이다.
 
-1. Collect bicycle-mounted IMU/GPS data on old campus roads.
-2. Detect high-impact candidate points.
-3. Label candidates using field measurements, not image classification.
-4. Train a lightweight feature-based classifier.
-5. Run inference on the Raspberry Pi during survey rides.
-6. Show risk candidates and maintenance improvement on a web map.
+1. 자전거에 장착한 IMU/GPS로 오래된 교내 도로 데이터를 수집한다.
+2. 큰 충격이 반복되는 후보 지점을 찾는다.
+3. 이미지 분류가 아니라 현장 측정으로 후보 지점에 라벨을 붙인다.
+4. IMU 특징 기반의 가벼운 분류기를 학습한다.
+5. 조사 주행 중 Raspberry Pi에서 분류기를 실행한다.
+6. 위험 후보와 정비 전후 개선 정도를 웹 지도에 표시한다.
 
-## Key Decisions
+## 핵심 결정
 
-- The main ML input is IMU-derived features. Webcam images are for visual confirmation only.
-- Image classification is out of scope for the MVP.
-- A test cart is not required. Because there is not enough time to use one, the MVP uses bicycle rides plus manual field measurements.
-- Labels are based on measured road defects such as step height, crack width, and pothole depth.
-- The product wording is "risk candidate" rather than "confirmed wheelchair danger" until expert or wheelchair-user validation is available.
-- Data transfer is manual. After a ride, session files are copied from the Pi to a laptop and uploaded into the web map.
-- Maintenance comparison is done by 10 m road segment, not exact point matching, to reduce GPS error sensitivity.
-- Physical data is not available during development, so mock sessions drive tests and early UI work.
-- Implementation should use TDD and active sub-agent review once the implementation plan is approved.
+- 머신러닝의 주 입력은 IMU에서 추출한 특징이다.
+- 웹캠 사진은 원인 확인용 자료로만 사용한다.
+- 이미지 분류는 MVP 범위에서 제외한다.
+- 시험용 카트는 사용하지 않는다. 시간 제약 때문에 자전거 주행과 현장 수동 측정으로 라벨을 만든다.
+- 라벨은 단차 높이, 균열 폭, 파임 깊이 같은 도로 결함 측정값을 기준으로 한다.
+- 제품 표현은 `휠체어 위험 확정 지도`가 아니라 `소형 바퀴 이동 위험 후보 지도`로 한다.
+- 주행 데이터 전송은 수동 방식이다. 주행 후 Pi의 세션 파일을 노트북으로 복사해 웹 지도에 업로드한다.
+- 정비 전후 비교는 GPS 오차를 줄이기 위해 개별 점이 아니라 약 10 m 도로 구간 단위로 한다.
+- 실제 물리 데이터는 개발 초기에 없으므로 mock 세션으로 수집, 학습, 지도 비교 기능을 먼저 만든다.
+- 구현은 TDD로 진행하고, 구현 계획 승인 후 sub-agent와 리뷰 루프를 적극 활용한다.
 
-## Existing Context
+## 기존 프로젝트 참고
 
-There is a related unfinished project at `/Users/song/Projects/pi`.
+비슷하다가 중단된 프로젝트가 `/Users/song/Projects/pi`에 있다.
 
-Useful parts to carry forward:
+재사용 가치가 있는 부분:
 
-- Leaflet static map prototype.
-- CSV session loading.
-- Danger-only and confidence filters.
-- GPS-valid filtering.
-- Sample CSV generator.
-- Campus-centered map coordinates near Chungbuk National University.
+- Leaflet 기반 정적 지도 프로토타입
+- CSV 세션 로딩
+- 위험만 보기, confidence 필터, GPS valid 필터
+- 샘플 CSV 생성기
+- 충북대학교 근처 지도 중심 좌표
 
-Parts that need expansion:
+확장해야 하는 부분:
 
-- The old CSV schema stores only final prediction and confidence.
-- The new MVP needs raw IMU sessions, GPS sessions, event sessions, photo references, label policy metadata, and before/after comparison metadata.
-- The manager map needs segment aggregation and maintenance comparison, not only point markers.
+- 기존 CSV는 최종 prediction과 confidence만 저장한다.
+- 새 MVP는 원본 IMU, GPS, 이벤트, 사진 경로, 라벨 정책, before/after 메타데이터가 필요하다.
+- 관리자 지도는 점 표시뿐 아니라 10 m 구간 집계와 정비 전후 비교가 필요하다.
 
-## System Architecture
+## 시스템 구조
 
-The system has four bounded areas.
+시스템은 네 영역으로 나눈다.
 
-### 1. Raspberry Pi Collector
+### 1. Raspberry Pi 수집기
 
-The collector runs on Raspberry Pi 3B during bicycle rides.
+자전거 주행 중 Raspberry Pi 3B에서 실행된다.
 
-Responsibilities:
+책임:
 
-- Read IMU data at a target rate of 100 Hz.
-- Read GPS position, GPS validity, and speed at the module's available rate.
-- Keep a short rolling webcam buffer.
-- Write raw IMU and GPS data continuously.
-- During early data collection, use a loose impact threshold to identify candidate locations.
-- During survey rides after model training, calculate IMU features and run the classifier in near real time.
-- Save event records when the classifier emits `caution` or `danger`.
-- Save confirmation photos around each event.
+- IMU 데이터를 목표 100 Hz로 읽는다.
+- GPS 위치, GPS valid, 속도를 GPS 모듈 주기에 맞춰 읽는다.
+- 짧은 웹캠 프레임 버퍼를 유지한다.
+- 원본 IMU와 GPS 데이터를 계속 저장한다.
+- 초기 데이터 수집 단계에서는 느슨한 충격 임계값으로 후보 위치를 찾는다.
+- 모델 학습 이후 조사 주행에서는 IMU 특징을 계산하고 분류기를 거의 실시간으로 실행한다.
+- 분류기가 `주의` 또는 `위험`을 내면 이벤트를 저장한다.
+- 이벤트 전후 확인용 사진을 저장한다.
 
-The collector is not responsible for training the model or doing maintenance comparison.
+수집기는 모델 학습이나 정비 전후 비교를 담당하지 않는다.
 
-### 2. Labeling And Training Tools
+### 2. 라벨링과 학습 도구
 
-These tools run on a laptop.
+노트북에서 실행된다.
 
-Responsibilities:
+책임:
 
-- Load raw session data and mock session data.
-- Convert IMU streams into fixed windows, initially 1 second.
-- Extract features from each window.
-- Attach labels from field measurements.
-- Train and evaluate a lightweight classifier, preferably Random Forest first.
-- Export a model artifact that can run on the Raspberry Pi.
+- 원본 세션 데이터와 mock 세션 데이터를 불러온다.
+- IMU 스트림을 1초 고정 창으로 나눈다.
+- 각 창에서 특징을 추출한다.
+- 현장 측정 라벨을 IMU/GPS 창에 연결한다.
+- Random Forest를 우선 사용해 가벼운 분류기를 학습하고 평가한다.
+- Raspberry Pi에서 실행 가능한 모델 파일을 내보낸다.
 
-The first training goal is not perfect accuracy. It should prioritize recall for `caution` and `danger`, because missing a risk candidate is worse than asking a manager to inspect an extra candidate.
+첫 학습 목표는 완벽한 정확도가 아니다. 위험 후보를 놓치지 않는 것이 더 중요하므로 `주의`와 `위험`의 재현율을 우선한다.
 
-### 3. Session Upload And Manager Map
+### 3. 세션 업로드와 관리자 지도
 
-The manager map runs locally in a browser for the MVP.
+MVP에서는 로컬 브라우저에서 실행한다.
 
-Responsibilities:
+책임:
 
-- Accept manually copied session folders or uploaded CSV/JSON files.
-- Render ride paths and risk candidates on a Leaflet map.
-- Group events into 10 m road segments.
-- Show event photos and measurement metadata in popups or a side panel.
-- Compare before and after sessions by segment.
-- Display improvement metrics for each segment.
+- 수동 복사한 세션 폴더 또는 CSV/JSON 파일을 불러온다.
+- 주행 경로와 위험 후보를 Leaflet 지도에 표시한다.
+- 이벤트를 10 m 도로 구간으로 묶는다.
+- 이벤트 사진과 측정 메타데이터를 팝업 또는 사이드 패널에 보여준다.
+- before 세션과 after 세션을 구간 단위로 비교한다.
+- 각 구간의 개선 지표를 표시한다.
 
-No real-time server upload is required in the first version.
+첫 버전에는 실시간 서버 업로드가 필요 없다.
 
-### 4. Mock Data And Tests
+### 4. Mock 데이터와 테스트
 
-Because real sensor data requires physical riding, development starts with mock data.
+실제 센서 데이터는 물리 주행이 필요하므로 개발은 mock 데이터부터 시작한다.
 
-Responsibilities:
+책임:
 
-- Generate plausible raw IMU, GPS, and event sessions.
-- Include normal riding, rough-road vibration, isolated non-road shocks, GPS invalid periods, and repeated risk candidates.
-- Generate paired before/after sessions with known improvement values.
-- Provide deterministic test fixtures with fixed seeds.
+- 실제 세션 구조와 같은 형태의 raw IMU, GPS, event 세션을 만든다.
+- 정상 주행, 거친 노면 진동, 도로 결함이 아닌 단발 충격, GPS invalid 구간, 반복 위험 후보를 포함한다.
+- 정답 개선율을 알 수 있는 before/after 세션 쌍을 만든다.
+- 고정 seed로 재현 가능한 테스트 fixture를 제공한다.
 
-Mock data must be structured like real session data so implementation can switch to physical data without rewriting the map or training pipeline.
+Mock 데이터는 실제 세션과 같은 계약을 따라야 한다. 그래야 물리 데이터를 얻은 뒤 지도나 학습 파이프라인을 다시 만들지 않고 교체할 수 있다.
 
-## Data Flow
+## 데이터 흐름
 
-### Calibration And Labeling Flow
+### 기준 확정과 라벨링 흐름
 
-1. Bicycle ride collects raw IMU, GPS, and candidate photos.
-2. Candidate points are inspected in the field.
-3. The team measures step height, crack width, and pothole depth.
-4. Each candidate receives one label: `normal`, `caution`, `danger`, or `exclude`.
-5. Label rules are written as `label_policy_v1`.
-6. Laptop tools match field labels to nearby IMU windows.
-7. Feature extraction creates model training rows.
-8. A Random Forest model is trained and evaluated.
-9. The chosen model is exported with a model version.
+1. 자전거 주행으로 원본 IMU, GPS, 후보 사진을 수집한다.
+2. 후보 지점을 현장에서 확인한다.
+3. 단차 높이, 균열 폭, 파임 깊이를 측정한다.
+4. 각 후보에 `정상`, `주의`, `위험`, `제외` 중 하나를 붙인다.
+5. 라벨 규칙을 `label_policy_v1`로 기록한다.
+6. 노트북 도구가 현장 라벨을 가까운 IMU 창에 연결한다.
+7. 특징 추출 결과가 학습 행이 된다.
+8. Random Forest 모델을 학습하고 평가한다.
+9. 선택한 모델을 버전과 함께 저장한다.
 
-### Survey Flow
+### 조사 주행 흐름
 
-1. Raspberry Pi collects IMU and GPS while the bicycle follows a planned campus route.
-2. Each 1 second IMU window is converted into features.
-3. The model predicts `normal`, `caution`, or `danger`.
-4. For `caution` and `danger`, the Pi writes an event record and saves confirmation photos.
-5. After the ride, files are copied to the laptop.
-6. The manager map loads the session and renders events by segment.
+1. Raspberry Pi가 계획된 교내 경로를 따라 IMU와 GPS를 수집한다.
+2. 1초 IMU 창마다 특징을 계산한다.
+3. 모델이 `정상`, `주의`, `위험`을 예측한다.
+4. `주의` 또는 `위험`이면 이벤트와 확인용 사진을 저장한다.
+5. 주행 후 세션 파일을 노트북으로 복사한다.
+6. 관리자 지도가 세션을 불러와 구간별 이벤트를 표시한다.
 
-### Maintenance Comparison Flow
+### 정비 전후 비교 흐름
 
-1. A road segment is surveyed before maintenance.
-2. The same route is surveyed after maintenance.
-3. Events are grouped into 10 m segments.
-4. Each segment receives summary metrics:
-   - event count
-   - maximum risk score
-   - average risk score
-   - repeated-detection ratio
-   - before/after improvement rate
-5. The map colors segments by current risk and improvement.
+1. 정비 전 도로 구간을 주행한다.
+2. 정비 후 같은 경로를 다시 주행한다.
+3. 이벤트를 10 m 구간으로 묶는다.
+4. 각 구간에 다음 지표를 계산한다.
+   - 이벤트 수
+   - 최대 위험 점수
+   - 평균 위험 점수
+   - 반복 검출 비율
+   - before/after 개선율
+5. 지도는 현재 위험도와 개선 정도에 따라 구간 색을 다르게 표시한다.
 
-## Session Data Contract
+## 세션 데이터 계약
 
-Each ride session should be stored as one folder:
+각 주행 세션은 하나의 폴더로 저장한다.
 
 ```text
 sessions/2026-06-12_before_run01/
@@ -159,21 +159,21 @@ sessions/2026-06-12_before_run01/
 
 ### `session.json`
 
-Required fields:
+필수 필드:
 
-- `session_id`: stable session identifier.
-- `phase`: `calibration`, `before`, `after`, or `demo`.
-- `run_index`: integer run number for repeated rides.
-- `started_at`: ISO 8601 timestamp.
-- `route_name`: human-readable route name.
-- `device`: Raspberry Pi and sensor notes.
-- `model_version`: model artifact version, or `none` for raw collection.
-- `label_policy_version`: label policy version, or `none` for unlabeled collection.
-- `notes`: short free-text notes.
+- `session_id`: 안정적인 세션 식별자
+- `phase`: `calibration`, `before`, `after`, `demo` 중 하나
+- `run_index`: 반복 주행 번호
+- `started_at`: ISO 8601 시각
+- `route_name`: 사람이 읽을 수 있는 경로 이름
+- `device`: Raspberry Pi와 센서 메모
+- `model_version`: 모델 버전, 원본 수집이면 `none`
+- `label_policy_version`: 라벨 정책 버전, 미라벨 세션이면 `none`
+- `notes`: 짧은 메모
 
 ### `raw_imu.csv`
 
-Columns:
+컬럼:
 
 - `timestamp`
 - `ax`
@@ -183,11 +183,11 @@ Columns:
 - `gy`
 - `gz`
 
-Acceleration and gyroscope units must be documented in `session.json` once the actual IMU module is chosen.
+가속도와 자이로 단위는 실제 IMU 모듈이 정해지면 `session.json`에 기록한다.
 
 ### `gps.csv`
 
-Columns:
+컬럼:
 
 - `timestamp`
 - `lat`
@@ -195,11 +195,11 @@ Columns:
 - `gps_valid`
 - `speed_mps`
 
-When GPS is invalid, rows should still be written. The last known coordinate may be retained, but `gps_valid=0` must allow the map and training tools to filter or down-rank those records.
+GPS가 invalid여도 행은 계속 쓴다. 마지막 좌표를 유지할 수 있지만, 지도와 학습 도구가 필터링하거나 낮게 평가할 수 있도록 반드시 `gps_valid=0`을 기록한다.
 
 ### `events.csv`
 
-Columns:
+컬럼:
 
 - `event_id`
 - `timestamp_start`
@@ -216,191 +216,191 @@ Columns:
 - `photo_after`
 - `model_version`
 
-`prediction` uses `normal`, `caution`, or `danger`. Event files normally include only `caution` and `danger`, but the schema allows `normal` for tests and debugging.
+`prediction`은 `normal`, `caution`, `danger`를 사용한다. 실제 이벤트 파일은 보통 `caution`과 `danger`만 포함하지만, 테스트와 디버깅을 위해 `normal`도 허용한다.
 
-## Label Policy
+## 라벨 정책
 
-The exact threshold values are decided after a short field trial. The first policy file is `label_policy_v1`.
+물리 측정 기준값은 짧은 현장 예비조사 후 확정하고 `label_policy_v1`에 기록한다.
 
-Labels:
+라벨:
 
-- `normal`: no meaningful small-wheel mobility concern based on measurement and visual inspection.
-- `caution`: a road defect that may inconvenience small wheels and should be reviewed.
-- `danger`: a road defect likely to block, destabilize, or strongly shock small wheels.
-- `exclude`: a shock source unrelated to road defects, such as braking, sharp turning, curb impact outside the target route, speed bump, sensor mount failure, or obvious GPS mismatch.
+- `normal`: 측정과 육안 확인 기준으로 작은 바퀴 이동 우려가 크지 않은 구간
+- `caution`: 작은 바퀴 이동에 불편을 줄 수 있어 점검이 필요한 결함
+- `danger`: 작은 바퀴를 멈추게 하거나, 흔들리게 하거나, 강한 충격을 줄 가능성이 큰 결함
+- `exclude`: 급제동, 급회전, 목표 경로 밖 턱 충돌, 과속방지턱, 센서 고정 실패, 명백한 GPS 불일치처럼 도로 결함과 무관한 충격
 
-The label file must store the measured values used to justify the label. Photos support review but do not define the label by themselves.
+라벨 파일은 라벨 근거가 되는 측정값을 저장해야 한다. 사진은 검토를 돕지만 사진만으로 라벨을 정하지 않는다.
 
-For mock data and tests before field measurements exist, use a deterministic mock policy:
+현장 측정 전 mock 데이터와 테스트에는 다음 deterministic mock 정책을 사용한다.
 
-- `normal`: generated risk score below `0.35`.
-- `caution`: generated risk score from `0.35` up to but not including `0.70`.
-- `danger`: generated risk score equal to or above `0.70`.
-- `exclude`: generated non-road shock flag is true.
+- `normal`: 생성된 위험 점수 `0.35` 미만
+- `caution`: 생성된 위험 점수 `0.35` 이상 `0.70` 미만
+- `danger`: 생성된 위험 점수 `0.70` 이상
+- `exclude`: 생성된 non-road shock 플래그가 참인 경우
 
-The mock policy is only a development fixture. Physical field labels replace it when real measurements exist.
+Mock 정책은 개발 fixture일 뿐이다. 실제 현장 측정값이 생기면 물리 라벨로 교체한다.
 
-## Feature-Based ML Design
+## IMU 특징 기반 ML 설계
 
-The first model uses engineered features rather than raw time-series deep learning.
+첫 모델은 원본 시계열 딥러닝이 아니라 사람이 설계한 특징을 사용한다.
 
-Windowing:
+창 분할:
 
-- Use 1 second windows for the first MVP.
-- Use non-overlapping windows for the first MVP to keep Pi runtime and event deduplication simple.
-- Attach GPS speed by nearest timestamp or average speed during the window.
+- MVP에서는 1초 창을 사용한다.
+- Pi 런타임과 이벤트 중복 제거를 단순하게 하기 위해 MVP에서는 겹치지 않는 창을 사용한다.
+- GPS 속도는 창 안의 평균 또는 가장 가까운 timestamp로 연결한다.
 
-Candidate features:
+후보 특징:
 
-- maximum absolute acceleration per axis
-- acceleration magnitude maximum
-- acceleration magnitude mean
-- acceleration magnitude standard deviation
-- jerk maximum
-- jerk mean
-- z-axis peak count
-- gyroscope magnitude maximum
-- gyroscope magnitude standard deviation
-- GPS speed
+- 축별 최대 절대 가속도
+- 가속도 크기 최대값
+- 가속도 크기 평균
+- 가속도 크기 표준편차
+- jerk 최대값
+- jerk 평균
+- z축 피크 수
+- 자이로 크기 최대값
+- 자이로 크기 표준편차
+- GPS 속도
 
-Model:
+모델:
 
-- Start with Random Forest.
-- Use Decision Tree only if Pi runtime or explainability becomes more important than accuracy.
-- Prefer recall for `caution` and `danger`.
-- Store confusion matrix and per-class precision/recall after training.
+- Random Forest로 시작한다.
+- Pi 실행 부담 또는 설명 가능성이 더 중요해지면 Decision Tree로 낮출 수 있다.
+- `주의`와 `위험` 재현율을 우선한다.
+- 학습 후 confusion matrix와 class별 precision/recall을 저장한다.
 
-## Manager Map Design
+## 관리자 지도 설계
 
-The first map can extend the old Leaflet prototype.
+첫 지도는 기존 Leaflet 프로토타입을 확장하거나 새로 만들 수 있다.
 
-Core views:
+핵심 화면:
 
-- Session selector or upload control.
-- Before/after selector.
-- Risk-only filter.
-- Minimum confidence filter.
-- GPS-valid filter.
-- 10 m segment layer.
-- Event marker layer.
-- Segment details panel.
+- 세션 선택 또는 업로드 컨트롤
+- before/after 선택
+- 위험만 보기 필터
+- 최소 confidence 필터
+- GPS valid 필터
+- 10 m 구간 레이어
+- 이벤트 마커 레이어
+- 구간 상세 패널
 
-Segment details:
+구간 상세:
 
-- current risk level
-- event count
-- average and maximum risk score
-- repeated-detection ratio
-- before/after improvement rate
-- linked event photos
-- field measurement label, when available
+- 현재 위험 수준
+- 이벤트 수
+- 평균/최대 위험 점수
+- 반복 검출 비율
+- before/after 개선율
+- 연결된 이벤트 사진
+- 사용 가능한 경우 현장 측정 라벨
 
-Improvement formula:
+개선율 공식:
 
 ```text
 improvement_rate = (before_score - after_score) / before_score
 ```
 
-If `before_score` is zero, the UI should not report a percentage. It should display `new risk`, `unchanged clean`, or `not comparable` depending on the after score and available sessions.
+`before_score`가 0이면 퍼센트를 표시하지 않는다. after 점수와 세션 유무에 따라 `새 위험`, `계속 깨끗함`, `비교 불가`로 표시한다.
 
-## Error Handling
+## 오류 처리
 
-Raspberry Pi collector:
+Raspberry Pi 수집기:
 
-- Continue writing IMU data if GPS is invalid.
-- Mark `gps_valid=0` instead of dropping records.
-- If the webcam frame is unavailable during an event, write the event with empty photo fields and an error note.
-- If the model artifact is missing, run in raw collection mode and do not emit model predictions.
-- If sensor reads fail repeatedly, write a clear error record and keep the process alive when possible.
+- GPS가 invalid여도 IMU 저장은 계속한다.
+- 레코드를 버리지 말고 `gps_valid=0`으로 표시한다.
+- 이벤트 시점의 웹캠 프레임을 얻지 못하면 사진 필드를 비우고 오류 메모를 쓴다.
+- 모델 파일이 없으면 원본 수집 모드로 실행하고 모델 prediction은 내지 않는다.
+- 센서 읽기 실패가 반복되면 명확한 오류 레코드를 쓰고 가능한 한 프로세스는 유지한다.
 
-Training tools:
+학습 도구:
 
-- Reject sessions missing required columns.
-- Reject labels that do not match the label policy vocabulary.
-- Warn when labeled candidates cannot be matched to IMU windows.
-- Keep excluded events out of model training.
+- 필수 컬럼이 없는 세션은 거부한다.
+- 라벨 정책에 없는 라벨은 거부한다.
+- 라벨 후보가 IMU 창과 매칭되지 않으면 경고한다.
+- `exclude` 이벤트는 학습 데이터에서 제외한다.
 
-Manager map:
+관리자 지도:
 
-- Validate uploaded session files before rendering.
-- Show a human-readable error when a file is missing or malformed.
-- Allow GPS-invalid events to be hidden by default.
-- Avoid exact point matching for before/after comparison; use segment IDs.
+- 렌더링 전 업로드 파일을 검증한다.
+- 파일 누락 또는 형식 오류는 사람이 읽을 수 있는 메시지로 표시한다.
+- GPS invalid 이벤트는 기본적으로 숨길 수 있어야 한다.
+- before/after 비교는 정확한 점 매칭이 아니라 segment id를 사용한다.
 
-## Testing Strategy
+## 테스트 전략
 
-Development must use TDD once implementation begins.
+구현은 TDD로 진행한다.
 
-Required TDD behavior:
+필수 TDD 절차:
 
-- Write a failing test before production code.
-- Run the targeted test and confirm the expected failure.
-- Implement the smallest change to pass.
-- Re-run the targeted test and then the relevant broader suite.
-- Refactor only after tests pass.
+- production code 전에 실패하는 테스트를 먼저 쓴다.
+- 대상 테스트를 실행해 기대한 이유로 실패하는지 확인한다.
+- 테스트를 통과시키는 가장 작은 구현을 한다.
+- 대상 테스트와 관련 상위 테스트를 다시 실행한다.
+- 리팩터링은 테스트가 통과한 뒤에만 한다.
 
-Mock data is the primary development fixture until physical data exists.
+실제 물리 데이터가 생기기 전까지 mock 데이터가 핵심 개발 fixture다.
 
-Important tests:
+중요 테스트:
 
-- Mock session generator creates deterministic sessions from a seed.
-- Feature extraction returns expected values for small synthetic IMU windows.
-- Label matching connects field labels to the correct GPS/IMU windows.
-- Excluded labels do not enter the training dataset.
-- Model training produces predictions with the expected class vocabulary.
-- Segment aggregation groups events into stable 10 m buckets.
-- Before/after comparison handles improvement, worsening, new risk, clean segments, and missing before scores.
-- Map CSV/JSON parsing rejects malformed data and accepts valid mock sessions.
+- mock 세션 생성기가 seed로 재현 가능한 세션을 만든다.
+- 작은 synthetic IMU 창에서 특징 추출값이 기대값과 일치한다.
+- 라벨 매칭이 현장 라벨을 올바른 GPS/IMU 창에 연결한다.
+- `exclude` 라벨은 학습 데이터에 들어가지 않는다.
+- 모델 학습 결과가 기대한 class vocabulary로 prediction을 만든다.
+- 구간 집계가 이벤트를 안정적인 10 m bucket으로 묶는다.
+- before/after 비교가 개선, 악화, 새 위험, 깨끗한 구간, before score 0을 처리한다.
+- 지도 CSV/JSON 파싱은 잘못된 데이터를 거부하고 올바른 mock 세션을 받아들인다.
 
-## Sub-Agent Implementation Strategy
+## Sub-Agent 구현 전략
 
-After the implementation plan is approved, work should be split into independent tasks and executed with sub-agents when practical.
+구현 계획 승인 후 가능한 작업은 sub-agent로 나누어 수행한다.
 
-Recommended task boundaries:
+권장 작업 경계:
 
-- Mock data generator and fixtures.
-- Session schema validation.
-- Feature extraction and label matching.
-- ML training and model export.
-- Pi collector skeleton and event writing.
-- Manager map upload and parsing.
-- 10 m segment aggregation and before/after metrics.
-- UI rendering and filter behavior.
+- mock 데이터 생성기와 fixture
+- 세션 스키마 검증
+- 특징 추출과 라벨 매칭
+- ML 학습과 모델 export
+- Pi 수집기 skeleton과 이벤트 저장
+- 관리자 지도 업로드와 파싱
+- 10 m 구간 집계와 before/after 지표
+- UI 렌더링과 필터 동작
 
-Each implementation task should have:
+각 구현 작업은 다음을 포함한다.
 
-- an implementer sub-agent,
-- a spec-compliance review,
-- a code-quality review,
-- tests written before production code,
-- a small commit after the task passes.
+- implementer sub-agent
+- spec-compliance review
+- code-quality review
+- production code 전에 작성된 테스트
+- 통과 후 작은 commit
 
-Parallel sub-agent work is appropriate only for independent research or review. Implementation tasks that touch the same files should be sequenced to avoid conflicts.
+병렬 sub-agent 작업은 독립적인 조사나 리뷰에 적합하다. 같은 파일을 수정하는 구현 작업은 충돌을 피하기 위해 순차적으로 진행한다.
 
-## MVP Acceptance Criteria
+## MVP 완료 기준
 
-The MVP is successful when:
+MVP는 다음 조건을 만족하면 성공이다.
 
-- A deterministic mock dataset can simulate before and after road sessions.
-- The training pipeline can run on mock or labeled session data.
-- The Pi-side code can run in raw collection mode and model inference mode, even if the first verification uses mock sensor streams.
-- The manager map can load at least two sessions and display caution/danger candidates.
-- The manager map groups events into 10 m segments.
-- The manager map reports before/after improvement for comparable segments.
-- Event details include confirmation photo paths when available.
-- The project documentation clearly states that this is a risk candidate map, not a confirmed clinical accessibility assessment.
+- deterministic mock dataset으로 before/after 도로 세션을 시뮬레이션할 수 있다.
+- 학습 파이프라인이 mock 데이터 또는 라벨 세션 데이터에서 실행된다.
+- Pi 측 코드는 mock sensor stream으로 원본 수집 모드와 모델 추론 모드를 검증할 수 있다.
+- 관리자 지도가 최소 두 개의 세션을 불러오고 `caution`/`danger` 후보를 표시한다.
+- 관리자 지도가 이벤트를 10 m 구간으로 묶는다.
+- 관리자 지도가 비교 가능한 구간의 before/after 개선율을 표시한다.
+- 이벤트 상세에 확인용 사진 경로가 포함된다.
+- 문서가 이 결과물이 확정 안전성 평가가 아니라 위험 후보 지도임을 분명히 설명한다.
 
-## Out Of Scope For MVP
+## MVP 범위 밖
 
-- Image classification.
-- Automatic Pi-to-server upload.
-- Real-time web dashboard.
-- Deep learning time-series classifier.
-- Direct safety claims for wheelchair users without external validation.
-- Full production deployment.
+- 이미지 분류
+- Pi에서 서버로 자동 업로드
+- 실시간 웹 대시보드
+- 딥러닝 시계열 분류기
+- 외부 검증 없는 휠체어 사용자 안전 확정 주장
+- production 배포
 
-## Hardware And Field Constraints
+## 하드웨어와 현장 제약
 
-- The collector must isolate IMU sensor access behind a small interface with mock and hardware implementations, so the concrete IMU module can be selected without changing downstream code.
-- The exact physical label thresholds are finalized after a short field trial, then recorded in `label_policy_v1`.
-- The old `/Users/song/Projects/pi` web prototype can be copied or re-created in this workspace during implementation, but its CSV contract should not be treated as sufficient for the new MVP.
+- 수집기는 IMU 센서 접근을 작은 인터페이스 뒤에 숨긴다. mock 구현과 하드웨어 구현을 분리해 실제 IMU 모듈 선택이 downstream 코드에 영향을 주지 않게 한다.
+- 물리 라벨 기준값은 짧은 예비조사 뒤 확정하고 `label_policy_v1`에 기록한다.
+- `/Users/song/Projects/pi`의 기존 웹 프로토타입은 복사하거나 다시 만들 수 있지만, 기존 CSV 계약은 새 MVP에 충분하지 않다.
