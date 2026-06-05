@@ -99,6 +99,9 @@ python3 -m barrier_free.cli collect \
   --out sessions \
   --duration 30 \
   --rate 20 \
+  --phase before \
+  --session-id before_001 \
+  --route-name campus_test_route \
   --gps-port /dev/serial0 \
   --camera-device /dev/video0
 ```
@@ -116,6 +119,73 @@ python3 -m barrier_free.cli collect \
 ```
 
 모델 없이 수집하면 `candidate` 이벤트를 저장합니다. 모델을 주면 `caution`/`danger` 이벤트를 저장합니다.
+
+## 실제 주행 데이터로 전/후 비교 지도 만들기
+
+1. 정비 전 또는 기준 주행을 수집합니다.
+
+```bash
+python3 -m barrier_free.cli collect \
+  --out sessions \
+  --duration 180 \
+  --rate 20 \
+  --phase before \
+  --session-id before_001 \
+  --route-name campus_test_route \
+  --gps-port /dev/serial0 \
+  --camera-device /dev/video0
+```
+
+2. 세션 품질을 확인합니다.
+
+```bash
+python3 -m barrier_free.cli audit-session sessions/before_001
+```
+
+확인할 핵심 지표:
+
+- `raw_imu_rows`: IMU 행 수
+- `gps_valid_ratio`: GPS valid 비율
+- `event_count`: 위험 후보 이벤트 수
+- `photo_count`: 저장된 사진 수
+- `issues`: 데이터 품질 문제
+
+3. 같은 경로를 비교 주행으로 다시 수집합니다. 실제 정비가 없으면 발표용으로는 “정비 후” 대신 “비교 주행”이라고 표현합니다.
+
+```bash
+python3 -m barrier_free.cli collect \
+  --out sessions \
+  --duration 180 \
+  --rate 20 \
+  --phase after \
+  --session-id after_001 \
+  --route-name campus_test_route \
+  --gps-port /dev/serial0 \
+  --camera-device /dev/video0
+```
+
+4. before/after 비교 JSON을 생성합니다.
+
+```bash
+python3 -m barrier_free.cli compare-sessions \
+  --before sessions/before_001 \
+  --after sessions/after_001 \
+  --out web
+```
+
+5. 지도를 엽니다.
+
+```bash
+python3 -m http.server 8000
+```
+
+브라우저:
+
+```text
+http://localhost:8000/web/
+```
+
+웹 지도에서 `보기`를 `전/후 비교`로 바꾸면 개선, 악화, 새 위험 구간을 비교 오버레이로 볼 수 있습니다. `after` 주행이 지나가지 않은 구간은 개선으로 계산하지 않고 비교 불가로 둡니다.
 
 ## 설계와 계획
 
