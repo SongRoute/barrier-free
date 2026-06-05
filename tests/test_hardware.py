@@ -34,6 +34,16 @@ class HardwareAdapterTest(unittest.TestCase):
         self.assertAlmostEqual(sample["lon"], -121.97236)
         self.assertAlmostEqual(sample["speed_mps"], 5.14444, places=4)
 
+    def test_neo_m8n_reader_returns_invalid_sample_on_serial_read_error(self):
+        reader = gps_neo_m8n.NEOM8NReader(serial_obj=FailingSerial())
+
+        sample = reader.read_sample()
+
+        self.assertEqual(sample["gps_valid"], 0)
+        self.assertEqual(sample["lat"], 0.0)
+        self.assertEqual(sample["lon"], 0.0)
+        self.assertEqual(sample["speed_mps"], 0.0)
+
     def test_usb_camera_uses_fswebcam_command(self):
         calls = []
 
@@ -64,6 +74,14 @@ class FakeI2CBus:
 
     def read_i2c_block_data(self, address, register, length):
         return self.blocks[register][:length]
+
+
+class FailingSerial:
+    def reset_input_buffer(self):
+        pass
+
+    def readline(self):
+        raise RuntimeError("device reports readiness to read but returned no data")
 
 
 if __name__ == "__main__":

@@ -20,13 +20,16 @@ class NEOM8NReader:
         except Exception:
             pass
         for _ in range(timeout_lines):
-            raw = self.serial.readline()
+            try:
+                raw = self.serial.readline()
+            except Exception:
+                return _invalid_sample()
             if isinstance(raw, bytes):
                 raw = raw.decode("ascii", errors="ignore")
             sample = parse_nmea_sentence(raw.strip(), timestamp=time.time())
             if sample is not None:
                 return sample
-        return {"timestamp": time.time(), "lat": 0.0, "lon": 0.0, "gps_valid": 0, "speed_mps": 0.0}
+        return _invalid_sample()
 
     def health_check(self) -> dict:
         sample = self.read_sample()
@@ -81,3 +84,7 @@ def _float_or_zero(value: str) -> float:
         return float(value)
     except ValueError:
         return 0.0
+
+
+def _invalid_sample() -> dict:
+    return {"timestamp": time.time(), "lat": 0.0, "lon": 0.0, "gps_valid": 0, "speed_mps": 0.0}

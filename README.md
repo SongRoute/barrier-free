@@ -147,6 +147,34 @@ http://라즈베리파이_IP:8000/web/
 
 `serve-session`은 실행 직후 `audit-session` 결과도 함께 출력합니다. `ok`가 `false`이면 지도는 볼 수 있지만, `issues`를 보고 GPS, IMU, 사진 누락 문제를 먼저 확인합니다.
 
+## GPS serial 오류 대응
+
+수집 중 다음 오류가 나오면 GPS UART가 순간적으로 끊겼거나 `/dev/serial0`를 다른 프로세스가 같이 읽고 있을 가능성이 큽니다.
+
+```text
+device reports readiness to read but returned no data
+```
+
+먼저 포트 중복 사용을 확인합니다.
+
+```bash
+sudo lsof /dev/serial0
+```
+
+불필요한 프로세스가 있으면 종료한 뒤 다시 수집합니다. GPS 서비스가 포트를 잡는 환경이면 아래도 확인합니다.
+
+```bash
+systemctl status gpsd
+```
+
+현재 수집기는 GPS read 오류가 한 번 발생해도 전체 수집을 중단하지 않고 해당 샘플을 `gps_valid=0`으로 기록합니다. 수집 후에는 반드시 확인합니다.
+
+```bash
+python3 -m barrier_free.cli audit-session sessions/before_001
+```
+
+`gps_valid_ratio`가 낮으면 지도는 볼 수 있지만 위치 신뢰도가 낮은 세션입니다. GPS fix가 안정된 뒤 다시 수집하는 것을 권장합니다.
+
 ## 실제 주행 데이터로 전/후 비교 지도 만들기
 
 1. 정비 전 또는 기준 주행을 수집합니다.
