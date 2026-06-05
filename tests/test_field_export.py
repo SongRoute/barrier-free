@@ -35,6 +35,37 @@ class FieldExportTest(unittest.TestCase):
             self.assertIn("lon", imu_window)
             self.assertEqual(payload["comparison"], [])
 
+    def test_imu_window_payloads_do_not_rescan_all_gps_rows_per_window(self):
+        gps_rows = CountingRows(
+            [
+                {
+                    "timestamp": float(index) * 0.1,
+                    "lat": 36.0 + index * 0.00001,
+                    "lon": 127.0,
+                    "gps_valid": 1,
+                    "speed_mps": 2.0,
+                }
+                for index in range(1000)
+            ]
+        )
+        raw_imu = [
+            {
+                "timestamp": float(index) * 0.5,
+                "ax": 0.0,
+                "ay": 0.0,
+                "az": 1.0 + (0.1 if index % 4 == 0 else 0.0),
+                "gx": 0.0,
+                "gy": 0.0,
+                "gz": 0.0,
+            }
+            for index in range(20)
+        ]
+
+        windows = field_export.imu_window_payloads({"raw_imu": raw_imu, "gps": gps_rows})
+
+        self.assertEqual(len(windows), 10)
+        self.assertLess(gps_rows.iteration_count, 3000)
+
     def test_export_session_comparison_reads_before_after_folders(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -88,6 +119,16 @@ class FieldExportTest(unittest.TestCase):
                     after_path=after_path,
                     output_dir=root / "web",
                 )
+
+class CountingRows(list):
+    def __init__(self, rows):
+        super().__init__(rows)
+        self.iteration_count = 0
+
+    def __iter__(self):
+        for row in super().__iter__():
+            self.iteration_count += 1
+            yield row
 
 
 if __name__ == "__main__":

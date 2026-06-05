@@ -129,11 +129,11 @@ def imu_window_payloads(bundle: dict) -> list[dict]:
 
     windows = features.window_imu_rows(bundle["raw_imu"], window_seconds=1.0)
     gps_rows = bundle["gps"]
+    nearest_gps_rows = _nearest_gps_rows_for_windows(windows, gps_rows)
     payloads = []
-    for index, window in enumerate(windows, start=1):
-        speed = features.nearest_speed_for_window(window, gps_rows)
+    for index, (window, gps_row) in enumerate(zip(windows, nearest_gps_rows), start=1):
+        speed = float(gps_row.get("speed_mps", 0.0))
         feature_row = features.extract_window_features(window, speed_mps=speed)
-        gps_row = _nearest_gps(window, gps_rows)
         payloads.append(
             {
                 "window_id": f"imu_window_{index:04d}",
@@ -165,11 +165,29 @@ def read_session_folder(path: Path) -> dict:
     return bundle
 
 
-def _nearest_gps(window: list[dict], gps_rows: list[dict]) -> dict:
+def _nearest_gps_rows_for_windows(windows: list[list[dict]], gps_rows: list[dict]) -> list[dict]:
+    if not windows:
+        return []
     if not gps_rows:
-        return {"timestamp": window[0]["timestamp"], "lat": 0.0, "lon": 0.0, "gps_valid": 0, "speed_mps": 0.0}
-    middle = (window[0]["timestamp"] + window[-1]["timestamp"]) / 2
-    return min(gps_rows, key=lambda row: abs(row["timestamp"] - middle))
+        return [_invalid_gps_row(window[0]["timestamp"]) for window in windows]
+
+    sorted_gps = sorted(gps_rows, key=lambda row: row["timestamp"])
+    nearest_rows = []
+    cursor = 0
+    for window in windows:
+        middle = (window[0]["timestamp"] + window[-1]["timestamp"]) / 2
+        while cursor + 1 < len(sorted_gps):
+            current_distance = abs(sorted_gps[cursor]["timestamp"] - middle)
+            next_distance = abs(sorted_gps[cursor + 1]["timestamp"] - middle)
+            if next_distance > current_distance:
+                break
+            cursor += 1
+        nearest_rows.append(sorted_gps[cursor])
+    return nearest_rows
+
+
+def _invalid_gps_row(timestamp: float) -> dict:
+    return {"timestamp": timestamp, "lat": 0.0, "lon": 0.0, "gps_valid": 0, "speed_mps": 0.0}
 
 
 def _accel_delta_max(window: list[dict]) -> float:
