@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 from pathlib import Path
 
-from . import schema, segments
+from . import features, schema, segments
 
 
 def export_session_comparison(
@@ -119,7 +120,37 @@ def session_payload(name: str, bundle: dict, summary: dict) -> dict:
         "gps": bundle["gps"],
         "events": bundle["events"],
         "segments": list(summary.values()),
+        "imu_windows": imu_window_payloads(bundle),
     }
+
+
+def imu_window_payloads(bundle: dict) -> list[dict]:
+    """1초 IMU window를 지도 표시용 강도 payload로 변환한다."""
+
+    windows = features.window_imu_rows(bundle["raw_imu"], window_seconds=1.0)
+    gps_rows = bundle["gps"]
+    payloads = []
+    for index, window in enumerate(windows, start=1):
+        speed = features.nearest_speed_for_window(window, gps_rows)
+        feature_row = features.extract_window_features(window, speed_mps=speed)
+        gps_row = _nearest_gps(window, gps_rows)
+        payloads.append(
+            {
+                "window_id": f"imu_window_{index:04d}",
+                "timestamp_start": window[0]["timestamp"],
+                "timestamp_end": window[-1]["timestamp"],
+                "sample_count": len(window),
+                "lat": gps_row["lat"],
+                "lon": gps_row["lon"],
+                "gps_valid": gps_row["gps_valid"],
+                "speed_mps": gps_row["speed_mps"],
+                "accel_mag_max": round(float(feature_row["accel_mag_max"]), 4),
+                "accel_mag_mean": round(float(feature_row["accel_mag_mean"]), 4),
+                "accel_delta_max": round(_accel_delta_max(window), 4),
+                "jerk_max": round(float(feature_row["jerk_max"]), 4),
+            }
+        )
+    return payloads
 
 
 def read_session_folder(path: Path) -> dict:
@@ -132,6 +163,21 @@ def read_session_folder(path: Path) -> dict:
     }
     schema.validate_session_bundle(bundle)
     return bundle
+
+
+def _nearest_gps(window: list[dict], gps_rows: list[dict]) -> dict:
+    if not gps_rows:
+        return {"timestamp": window[0]["timestamp"], "lat": 0.0, "lon": 0.0, "gps_valid": 0, "speed_mps": 0.0}
+    middle = (window[0]["timestamp"] + window[-1]["timestamp"]) / 2
+    return min(gps_rows, key=lambda row: abs(row["timestamp"] - middle))
+
+
+def _accel_delta_max(window: list[dict]) -> float:
+    deltas = []
+    for row in window:
+        accel_mag = math.sqrt(row["ax"] * row["ax"] + row["ay"] * row["ay"] + row["az"] * row["az"])
+        deltas.append(abs(accel_mag - 1.0))
+    return max(deltas) if deltas else 0.0
 
 
 def read_csv(path: Path) -> list[dict]:

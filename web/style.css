@@ -111,6 +111,19 @@ dd {
   background: #7c3aed;
 }
 
+.badge.imu-low {
+  background: #16a34a;
+}
+
+.badge.imu-mid {
+  background: #eab308;
+  color: #172033;
+}
+
+.badge.imu-high {
+  background: #dc2626;
+}
+
 #details {
   padding: 12px;
   border: 1px solid #e2e8f0;

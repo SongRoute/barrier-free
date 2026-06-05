@@ -10,6 +10,7 @@ const segmentLayer = L.layerGroup().addTo(map);
 const eventLayer = L.layerGroup().addTo(map);
 const pathLayer = L.layerGroup().addTo(map);
 const comparisonLayer = L.layerGroup().addTo(map);
+const imuLayer = L.layerGroup().addTo(map);
 
 let payload = null;
 let selectedSession = null;
@@ -50,6 +51,7 @@ function render() {
   }
 
   renderPath(selectedSession.gps);
+  renderImuHeatRoute(selectedSession.imu_windows || []);
   renderSegments(selectedSession.segments);
   renderEvents(selectedSession.events);
   renderSummary(payload.comparison);
@@ -108,6 +110,48 @@ function renderEvents(events) {
   }
 }
 
+function renderImuHeatRoute(windows) {
+  if (!document.getElementById("imu-heat-toggle").checked) return;
+
+  const validWindows = windows.filter((row) => {
+    const lat = Number(row.lat);
+    const lon = Number(row.lon);
+    return Number(row.gps_valid) === 1 && Number.isFinite(lat) && Number.isFinite(lon);
+  });
+  if (validWindows.length === 0) return;
+
+  for (let index = 0; index < validWindows.length; index += 1) {
+    const current = validWindows[index];
+    const currentCoord = [Number(current.lat), Number(current.lon)];
+    const color = imuColor(Number(current.accel_delta_max));
+    const popup = imuWindowPopup(current);
+
+    if (index > 0) {
+      const prev = validWindows[index - 1];
+      const prevCoord = [Number(prev.lat), Number(prev.lon)];
+      const line = L.polyline([prevCoord, currentCoord], {
+        color,
+        weight: 7,
+        opacity: 0.72,
+      });
+      line.bindPopup(popup);
+      line.on("click", () => showDetails(popup));
+      line.addTo(imuLayer);
+    }
+
+    const marker = L.circleMarker(currentCoord, {
+      radius: 3 + Math.min(Number(current.accel_delta_max) * 4, 8),
+      color,
+      fillColor: color,
+      fillOpacity: 0.5,
+      weight: 1,
+    });
+    marker.bindPopup(popup);
+    marker.on("click", () => showDetails(popup));
+    marker.addTo(imuLayer);
+  }
+}
+
 function renderSummary(comparison) {
   const counts = comparison.reduce((acc, row) => {
     acc[row.status] = (acc[row.status] || 0) + 1;
@@ -128,6 +172,7 @@ function clearLayers() {
   eventLayer.clearLayers();
   pathLayer.clearLayers();
   comparisonLayer.clearLayers();
+  imuLayer.clearLayers();
 }
 
 function segmentColor(level) {
@@ -175,6 +220,13 @@ function statusColor(status) {
   return "#64748b";
 }
 
+function imuColor(delta) {
+  if (delta >= 1.0) return "#dc2626";
+  if (delta >= 0.6) return "#f97316";
+  if (delta >= 0.25) return "#eab308";
+  return "#16a34a";
+}
+
 function segmentPopup(segment) {
   return `
     <strong>${segment.segment_id}</strong><br>
@@ -192,6 +244,18 @@ function eventPopup(event) {
     risk: ${Number(event.risk_score).toFixed(2)} / confidence: ${Number(event.confidence).toFixed(2)}<br>
     사진: ${event.photo_before || "없음"}<br>
     GPS: ${event.lat.toFixed(6)}, ${event.lon.toFixed(6)}
+  `;
+}
+
+function imuWindowPopup(row) {
+  return `
+    <strong>IMU 강도</strong><br>
+    시간: ${Number(row.timestamp_start).toFixed(1)} ~ ${Number(row.timestamp_end).toFixed(1)}<br>
+    accel max: ${Number(row.accel_mag_max).toFixed(2)}g<br>
+    delta max: ${Number(row.accel_delta_max).toFixed(2)}g<br>
+    jerk max: ${Number(row.jerk_max).toFixed(2)}<br>
+    speed: ${Number(row.speed_mps).toFixed(2)} m/s<br>
+    GPS: ${Number(row.lat).toFixed(6)}, ${Number(row.lon).toFixed(6)}
   `;
 }
 
@@ -221,7 +285,7 @@ function average(values) {
   return values.reduce((sum, value) => sum + Number(value), 0) / values.length;
 }
 
-for (const id of ["danger-only", "gps-valid-only", "confidence-filter", "view-mode"]) {
+for (const id of ["danger-only", "gps-valid-only", "confidence-filter", "view-mode", "imu-heat-toggle"]) {
   document.getElementById(id).addEventListener("input", render);
 }
 

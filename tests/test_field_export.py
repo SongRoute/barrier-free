@@ -27,6 +27,12 @@ class FieldExportTest(unittest.TestCase):
             self.assertGreater(payload["source"]["coverage_count"], 0)
             self.assertEqual([session["name"] for session in payload["sessions"]], ["preview"])
             self.assertGreater(len(payload["sessions"][0]["segments"]), 0)
+            self.assertGreater(len(payload["sessions"][0]["imu_windows"]), 0)
+            imu_window = payload["sessions"][0]["imu_windows"][0]
+            self.assertIn("accel_delta_max", imu_window)
+            self.assertIn("accel_mag_max", imu_window)
+            self.assertIn("lat", imu_window)
+            self.assertIn("lon", imu_window)
             self.assertEqual(payload["comparison"], [])
 
     def test_export_session_comparison_reads_before_after_folders(self):

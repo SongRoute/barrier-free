@@ -28,10 +28,13 @@ class WebExportTest(unittest.TestCase):
         self.assertIn('id="map"', index)
         self.assertIn('id="session-list"', index)
         self.assertIn('id="view-mode"', index)
+        self.assertIn('id="imu-heat-toggle"', index)
         self.assertIn("leaflet", index.lower())
         self.assertIn("L.map", app)
         self.assertIn("renderSegments", app)
         self.assertIn("renderEvents", app)
+        self.assertIn("renderImuHeatRoute", app)
+        self.assertIn("imuColor", app)
         self.assertIn("renderComparisonMode", app)
         self.assertIn("statusColor", app)
 
