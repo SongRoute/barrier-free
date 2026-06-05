@@ -19,6 +19,13 @@
         <select id="session-list"></select>
       </label>
       <label>
+        보기
+        <select id="view-mode">
+          <option value="session">선택 세션</option>
+          <option value="comparison">전/후 비교</option>
+        </select>
+      </label>
+      <label>
         <input type="checkbox" id="danger-only" checked>
         주의·위험만 표시
       </label>
@@ -39,6 +46,11 @@
     <aside>
       <h2>구간 비교</h2>
       <div id="summary"></div>
+      <div id="legend">
+        <span class="badge improved">개선</span>
+        <span class="badge worsened">악화</span>
+        <span class="badge new-risk">새 위험</span>
+      </div>
       <h2>선택 구간</h2>
       <div id="details">지도 구간이나 이벤트를 선택하세요.</div>
     </aside>

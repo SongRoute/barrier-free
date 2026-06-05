@@ -84,6 +84,33 @@ dd {
   font-weight: 700;
 }
 
+#legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.badge {
+  border-radius: 999px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+}
+
+.badge.improved {
+  background: #16a34a;
+}
+
+.badge.worsened {
+  background: #dc2626;
+}
+
+.badge.new-risk {
+  background: #7c3aed;
+}
+
 #details {
   padding: 12px;
   border: 1px solid #e2e8f0;

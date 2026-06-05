@@ -27,10 +27,13 @@ class WebExportTest(unittest.TestCase):
 
         self.assertIn('id="map"', index)
         self.assertIn('id="session-list"', index)
+        self.assertIn('id="view-mode"', index)
         self.assertIn("leaflet", index.lower())
         self.assertIn("L.map", app)
         self.assertIn("renderSegments", app)
         self.assertIn("renderEvents", app)
+        self.assertIn("renderComparisonMode", app)
+        self.assertIn("statusColor", app)
 
 
 if __name__ == "__main__":

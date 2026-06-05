@@ -9,6 +9,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 const segmentLayer = L.layerGroup().addTo(map);
 const eventLayer = L.layerGroup().addTo(map);
 const pathLayer = L.layerGroup().addTo(map);
+const comparisonLayer = L.layerGroup().addTo(map);
 
 let payload = null;
 let selectedSession = null;
@@ -41,6 +42,13 @@ function populateSessions(sessions) {
 
 function render() {
   clearLayers();
+  const viewMode = document.getElementById("view-mode").value;
+  if (viewMode === "comparison") {
+    renderComparisonMode(payload.comparison, payload.sessions);
+    renderSummary(payload.comparison);
+    return;
+  }
+
   renderPath(selectedSession.gps);
   renderSegments(selectedSession.segments);
   renderEvents(selectedSession.events);
@@ -119,11 +127,51 @@ function clearLayers() {
   segmentLayer.clearLayers();
   eventLayer.clearLayers();
   pathLayer.clearLayers();
+  comparisonLayer.clearLayers();
 }
 
 function segmentColor(level) {
   if (level === "danger") return "#dc2626";
   if (level === "caution" || level === "candidate") return "#f97316";
+  return "#64748b";
+}
+
+function renderComparisonMode(comparison, sessions) {
+  const segmentById = new Map();
+  for (const session of sessions) {
+    for (const segment of session.segments || []) {
+      if (!segmentById.has(segment.segment_id)) {
+        segmentById.set(segment.segment_id, segment);
+      }
+    }
+  }
+
+  for (const row of comparison) {
+    if (!["improved", "worsened", "new_risk"].includes(row.status)) continue;
+    const segment = segmentById.get(row.segment_id);
+    if (!segment) continue;
+    const lat = Number(segment.center_lat);
+    const lon = Number(segment.center_lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) continue;
+
+    const popup = comparisonPopup(row);
+    const marker = L.circleMarker([lat, lon], {
+      radius: 16,
+      color: statusColor(row.status),
+      fillColor: statusColor(row.status),
+      fillOpacity: 0.14,
+      weight: 4,
+    });
+    marker.bindPopup(popup);
+    marker.on("click", () => showDetails(popup));
+    marker.addTo(comparisonLayer);
+  }
+}
+
+function statusColor(status) {
+  if (status === "improved") return "#16a34a";
+  if (status === "worsened") return "#dc2626";
+  if (status === "new_risk") return "#7c3aed";
   return "#64748b";
 }
 
@@ -147,6 +195,24 @@ function eventPopup(event) {
   `;
 }
 
+function comparisonPopup(row) {
+  return `
+    <strong>전/후 비교</strong><br>
+    상태: ${comparisonStatusLabel(row.status)}<br>
+    before: ${Number(row.before_score || 0).toFixed(2)}<br>
+    after: ${Number(row.after_score || 0).toFixed(2)}<br>
+    개선율: ${row.improvement_rate === null ? "N/A" : `${(Number(row.improvement_rate) * 100).toFixed(1)}%`}
+  `;
+}
+
+function comparisonStatusLabel(status) {
+  if (status === "improved") return "개선";
+  if (status === "worsened") return "악화";
+  if (status === "new_risk") return "새 위험";
+  if (status === "unchanged_clean") return "양호 유지";
+  return "비교 불가";
+}
+
 function showDetails(html) {
   document.getElementById("details").innerHTML = html;
 }
@@ -155,7 +221,7 @@ function average(values) {
   return values.reduce((sum, value) => sum + Number(value), 0) / values.length;
 }
 
-for (const id of ["danger-only", "gps-valid-only", "confidence-filter"]) {
+for (const id of ["danger-only", "gps-valid-only", "confidence-filter", "view-mode"]) {
   document.getElementById(id).addEventListener("input", render);
 }
 
