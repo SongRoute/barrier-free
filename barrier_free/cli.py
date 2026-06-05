@@ -43,6 +43,10 @@ def main(argv: list[str] | None = None) -> int:
     collect.add_argument("--duration", type=float, default=60.0)
     collect.add_argument("--rate", type=float, default=20.0)
     collect.add_argument("--model", type=Path, default=None)
+    collect.add_argument("--phase", choices=["calibration", "before", "after", "demo"], default="demo")
+    collect.add_argument("--session-id", default=None)
+    collect.add_argument("--route-name", default="pi_field_collection")
+    collect.add_argument("--run-index", type=int, default=1)
     collect.add_argument("--gps-port", default="/dev/serial0")
     collect.add_argument("--gps-baudrate", type=int, default=9600)
     collect.add_argument("--camera-device", default="/dev/video0")
@@ -266,6 +270,10 @@ def _collect_from_hardware(args) -> Path:
         duration_seconds=args.duration,
         sample_rate_hz=args.rate,
         model_path=args.model,
+        session_id=args.session_id,
+        phase=args.phase,
+        route_name=args.route_name,
+        run_index=args.run_index,
     )
 
 

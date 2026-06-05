@@ -64,6 +64,30 @@ class CollectorCliTest(unittest.TestCase):
             self.assertEqual({row["prediction"] for row in events}, {"candidate"})
             self.assertTrue((path / events[0]["photo_before"]).exists())
 
+    def test_sensor_collection_accepts_field_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+
+            path = collector.run_sensor_collection(
+                out,
+                imu_reader=FakeIMU(),
+                gps_reader=FakeGPS(),
+                duration_seconds=1.0,
+                sample_rate_hz=2.0,
+                session_id="before_short_test",
+                phase="before",
+                route_name="campus_test_route",
+                run_index=2,
+                sleeper=None,
+                clock=FakeClock(),
+            )
+
+            session = json.loads((path / "session.json").read_text(encoding="utf-8"))
+            self.assertEqual(session["session_id"], "before_short_test")
+            self.assertEqual(session["phase"], "before")
+            self.assertEqual(session["route_name"], "campus_test_route")
+            self.assertEqual(session["run_index"], 2)
+
 
 def _read_csv(path: Path):
     import csv
@@ -110,6 +134,15 @@ class FakeCamera:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(b"fake image")
         return path
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        self.now += 0.2
+        return self.now
 
 
 if __name__ == "__main__":

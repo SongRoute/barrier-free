@@ -88,6 +88,9 @@ def run_sensor_collection(
     sample_rate_hz: float = 20.0,
     model_path: Path | None = None,
     session_id: str | None = None,
+    phase: str = "demo",
+    route_name: str = "pi_field_collection",
+    run_index: int = 1,
     impact_threshold: float = 1.8,
     sleeper=time.sleep,
     clock=time.time,
@@ -123,10 +126,10 @@ def run_sensor_collection(
     bundle = {
         "session": {
             "session_id": session_id,
-            "phase": "demo",
-            "run_index": 1,
+            "phase": phase,
+            "run_index": run_index,
             "started_at": _iso8601(started_at),
-            "route_name": "pi_field_collection",
+            "route_name": route_name,
             "device": "Raspberry Pi 3B + MPU6050 + NEO-M8N + USB webcam",
             "model_version": "tiny-forest-mock" if classifier else "none",
             "label_policy_version": "none",
