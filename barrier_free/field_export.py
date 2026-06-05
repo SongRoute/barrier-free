@@ -61,6 +61,43 @@ def export_session_comparison(
     return path
 
 
+def export_session_preview(
+    *,
+    session_path: Path,
+    output_dir: Path,
+    segment_meters: int = 10,
+) -> Path:
+    """단일 수집 세션을 web/demo_data.json 구조로 저장한다."""
+
+    bundle = read_session_folder(session_path)
+    summary = segments.aggregate_events(bundle["events"], segment_meters=segment_meters)
+    coverage = segments.route_coverage_segments(bundle["gps"], segment_meters=segment_meters)
+    payload = {
+        "source": {
+            "type": "field-session-preview",
+            "session_path": str(session_path),
+            "segment_meters": segment_meters,
+            "coverage_count": len(coverage),
+        },
+        "model": {
+            "type": "field-or-threshold",
+            "version": bundle["session"].get("model_version", "none"),
+            "training_rows": 0,
+            "recall": None,
+            "confusion_matrix": {},
+        },
+        "sessions": [
+            session_payload("preview", bundle, summary),
+        ],
+        "comparison": [],
+    }
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / "demo_data.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
 def _validate_comparison_metadata(before_bundle: dict, after_bundle: dict) -> None:
     before_session = before_bundle["session"]
     after_session = after_bundle["session"]

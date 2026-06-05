@@ -19,6 +19,8 @@ class PiCliTest(unittest.TestCase):
         self.assertIn("collect", text)
         self.assertIn("compare-sessions", text)
         self.assertIn("audit-session", text)
+        self.assertIn("preview-session", text)
+        self.assertIn("serve-session", text)
 
 
 if __name__ == "__main__":

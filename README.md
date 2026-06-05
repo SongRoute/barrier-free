@@ -120,6 +120,33 @@ python3 -m barrier_free.cli collect \
 
 모델 없이 수집하면 `candidate` 이벤트를 저장합니다. 모델을 주면 `caution`/`danger` 이벤트를 저장합니다.
 
+## 수집 직후 지도에서 확인하기
+
+수집 세션 하나만 빠르게 확인할 때는 before/after 비교를 만들 필요 없이 preview 기능을 사용합니다.
+
+지도용 JSON만 생성:
+
+```bash
+python3 -m barrier_free.cli preview-session sessions/before_001 --out web
+```
+
+지도용 JSON을 생성하고 웹 서버까지 실행:
+
+```bash
+python3 -m barrier_free.cli serve-session \
+  sessions/before_001 \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+Pi에서 실행했다면 브라우저에서 다음 주소를 엽니다.
+
+```text
+http://라즈베리파이_IP:8000/web/
+```
+
+`serve-session`은 실행 직후 `audit-session` 결과도 함께 출력합니다. `ok`가 `false`이면 지도는 볼 수 있지만, `issues`를 보고 GPS, IMU, 사진 누락 문제를 먼저 확인합니다.
+
 ## 실제 주행 데이터로 전/후 비교 지도 만들기
 
 1. 정비 전 또는 기준 주행을 수집합니다.

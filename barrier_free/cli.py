@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import functools
 import json
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import collector, field_export, mock_data, model, schema, segments, session_audit
@@ -60,6 +62,18 @@ def main(argv: list[str] | None = None) -> int:
     audit = sub.add_parser("audit-session", help="수집 세션의 IMU/GPS/이벤트/사진 품질을 요약한다")
     audit.add_argument("path", type=Path)
 
+    preview = sub.add_parser("preview-session", help="단일 수집 세션을 지도 확인용 demo_data.json으로 변환한다")
+    preview.add_argument("path", type=Path)
+    preview.add_argument("--out", type=Path, default=Path("web"))
+    preview.add_argument("--segment-meters", type=int, default=10)
+
+    serve = sub.add_parser("serve-session", help="단일 수집 세션을 지도 확인용으로 변환하고 웹 서버를 실행한다")
+    serve.add_argument("path", type=Path)
+    serve.add_argument("--out", type=Path, default=Path("web"))
+    serve.add_argument("--segment-meters", type=int, default=10)
+    serve.add_argument("--host", default="0.0.0.0")
+    serve.add_argument("--port", type=int, default=8000)
+
     args = parser.parse_args(argv)
     if args.command == "demo":
         path = collector.run_mock_collection(args.out, seed=args.seed, model_path=args.model)
@@ -100,6 +114,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "audit-session":
         print(json.dumps(session_audit.audit_session(args.path), ensure_ascii=False, indent=2))
         return 0
+    if args.command == "preview-session":
+        path = field_export.export_session_preview(
+            session_path=args.path,
+            output_dir=args.out,
+            segment_meters=args.segment_meters,
+        )
+        print(path)
+        print(json.dumps(session_audit.audit_session(args.path), ensure_ascii=False, indent=2))
+        return 0
+    if args.command == "serve-session":
+        return _serve_session_preview(args)
     raise AssertionError(f"unknown command: {args.command}")
 
 
@@ -281,6 +306,39 @@ def _collect_from_hardware(args) -> Path:
         route_name=args.route_name,
         run_index=args.run_index,
     )
+
+
+def _serve_session_preview(args) -> int:
+    path = field_export.export_session_preview(
+        session_path=args.path,
+        output_dir=args.out,
+        segment_meters=args.segment_meters,
+    )
+    audit = session_audit.audit_session(args.path)
+    display_host = "localhost" if args.host in {"0.0.0.0", "::"} else args.host
+    print(
+        json.dumps(
+            {
+                "payload": str(path),
+                "url": f"http://{display_host}:{args.port}/web/",
+                "pi_url_hint": f"http://<raspberry-pi-ip>:{args.port}/web/",
+                "audit": audit,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        flush=True,
+    )
+
+    handler = functools.partial(SimpleHTTPRequestHandler, directory=str(_project_root()))
+    server = ThreadingHTTPServer((args.host, args.port), handler)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        return 0
+    finally:
+        server.server_close()
+    return 0
 
 
 if __name__ == "__main__":
