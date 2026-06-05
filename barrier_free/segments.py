@@ -88,11 +88,13 @@ def aggregate_events(events: Iterable[Mapping], segment_meters: int = 10) -> dic
     return grouped
 
 
-def compare_segments(before, after) -> list[dict]:
+def compare_segments(before, after, before_coverage=None, after_coverage=None) -> list[dict]:
     """Compare before and after segment summaries."""
 
     before_by_segment = _summary_by_segment(before)
     after_by_segment = _summary_by_segment(after)
+    before_coverage_set = set(before_coverage) if before_coverage is not None else None
+    after_coverage_set = set(after_coverage) if after_coverage is not None else None
     comparison = []
 
     for segment_id in sorted(set(before_by_segment) | set(after_by_segment)):
@@ -100,16 +102,17 @@ def compare_segments(before, after) -> list[dict]:
         after_row = after_by_segment.get(segment_id)
         before_score = _summary_score(before_row)
         after_score = _summary_score(after_row)
-        if before_row is not None and after_row is None:
+        comparable = _is_comparable_segment(segment_id, before_coverage_set, after_coverage_set)
+        if before_row is not None and after_row is None and comparable:
             after_score = 0.0
 
         comparison.append(
             {
                 "segment_id": segment_id,
-                "status": _comparison_status(before_score, after_score),
+                "status": _comparison_status(before_score, after_score, comparable=comparable),
                 "before_score": before_score,
                 "after_score": after_score,
-                "improvement_rate": _improvement_rate(before_score, after_score),
+                "improvement_rate": _improvement_rate(before_score, after_score, comparable=comparable),
                 "before_event_count": _event_count(before_row),
                 "after_event_count": _event_count(after_row),
                 "before_risk_level": _risk_level_for_summary(before_row),
@@ -118,6 +121,20 @@ def compare_segments(before, after) -> list[dict]:
         )
 
     return comparison
+
+
+def route_coverage_segments(gps_rows: Iterable[Mapping], segment_meters: int = 10) -> set[str]:
+    """GPS valid 주행 경로가 지나간 segment id 집합을 반환한다."""
+
+    coverage = set()
+    for row in gps_rows:
+        if not _gps_valid(row):
+            continue
+        try:
+            coverage.add(segment_id_for(row["lat"], row["lon"], segment_meters=segment_meters))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return coverage
 
 
 def _event_segment_id(event: Mapping, segment_meters: int) -> str:
@@ -187,7 +204,17 @@ def _risk_level_for_summary(row) -> str | None:
     return row.get("risk_level", _risk_level(_summary_score(row) or 0.0))
 
 
-def _comparison_status(before_score: float | None, after_score: float | None) -> str:
+def _is_comparable_segment(segment_id: str, before_coverage: set[str] | None, after_coverage: set[str] | None) -> bool:
+    if before_coverage is not None and segment_id not in before_coverage:
+        return False
+    if after_coverage is not None and segment_id not in after_coverage:
+        return False
+    return True
+
+
+def _comparison_status(before_score: float | None, after_score: float | None, comparable: bool = True) -> str:
+    if not comparable:
+        return "not_comparable"
     if before_score is None:
         if after_score is not None and after_score > 0:
             return "new_risk"
@@ -205,7 +232,7 @@ def _comparison_status(before_score: float | None, after_score: float | None) ->
     return "not_comparable"
 
 
-def _improvement_rate(before_score: float | None, after_score: float | None) -> float | None:
-    if before_score is None or after_score is None or before_score == 0:
+def _improvement_rate(before_score: float | None, after_score: float | None, comparable: bool = True) -> float | None:
+    if not comparable or before_score is None or after_score is None or before_score == 0:
         return None
     return (before_score - after_score) / before_score

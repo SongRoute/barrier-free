@@ -72,6 +72,30 @@ class SegmentTest(unittest.TestCase):
         self.assertEqual(comparison[missing_after]["status"], "improved")
         self.assertAlmostEqual(comparison[missing_after]["improvement_rate"], 1.0)
 
+    def test_compare_before_after_uses_route_coverage_to_avoid_false_improvement(self):
+        covered = "covered"
+        not_covered = "not_covered"
+        before = {
+            covered: _summary(covered, 0.80),
+            not_covered: _summary(not_covered, 0.70),
+        }
+        after = {}
+
+        comparison = {
+            row["segment_id"]: row
+            for row in segments.compare_segments(
+                before,
+                after,
+                before_coverage={covered, not_covered},
+                after_coverage={covered},
+            )
+        }
+
+        self.assertEqual(comparison[covered]["status"], "improved")
+        self.assertAlmostEqual(comparison[covered]["improvement_rate"], 1.0)
+        self.assertEqual(comparison[not_covered]["status"], "not_comparable")
+        self.assertIsNone(comparison[not_covered]["improvement_rate"])
+
     def test_mock_before_after_reports_improvement(self):
         dataset = mock_data.build_demo_dataset(seed=42)
         before = segments.aggregate_events(dataset["before"]["events"], segment_meters=10)
