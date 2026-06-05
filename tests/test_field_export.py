@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 from barrier_free import field_export, mock_data, schema
@@ -30,6 +31,36 @@ class FieldExportTest(unittest.TestCase):
             self.assertEqual(payload["source"]["segment_meters"], 10)
             self.assertGreater(payload["source"]["before_coverage_count"], 0)
             self.assertGreater(payload["source"]["after_coverage_count"], 0)
+
+    def test_export_session_comparison_rejects_swapped_phases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dataset = mock_data.build_demo_dataset(seed=42)
+            before_path = schema.write_session_bundle(dataset["after"], root / "wrong_before")
+            after_path = schema.write_session_bundle(dataset["before"], root / "wrong_after")
+
+            with self.assertRaisesRegex(ValueError, "before session phase must be before"):
+                field_export.export_session_comparison(
+                    before_path=before_path,
+                    after_path=after_path,
+                    output_dir=root / "web",
+                )
+
+    def test_export_session_comparison_rejects_route_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dataset = mock_data.build_demo_dataset(seed=42)
+            after = deepcopy(dataset["after"])
+            after["session"]["route_name"] = "different_route"
+            before_path = schema.write_session_bundle(dataset["before"], root / "before")
+            after_path = schema.write_session_bundle(after, root / "after")
+
+            with self.assertRaisesRegex(ValueError, "route_name must match"):
+                field_export.export_session_comparison(
+                    before_path=before_path,
+                    after_path=after_path,
+                    output_dir=root / "web",
+                )
 
 
 if __name__ == "__main__":

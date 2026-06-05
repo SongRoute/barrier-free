@@ -20,6 +20,7 @@ def export_session_comparison(
 
     before_bundle = read_session_folder(before_path)
     after_bundle = read_session_folder(after_path)
+    _validate_comparison_metadata(before_bundle, after_bundle)
     before_summary = segments.aggregate_events(before_bundle["events"], segment_meters=segment_meters)
     after_summary = segments.aggregate_events(after_bundle["events"], segment_meters=segment_meters)
     before_coverage = segments.route_coverage_segments(before_bundle["gps"], segment_meters=segment_meters)
@@ -58,6 +59,20 @@ def export_session_comparison(
     path = output_dir / "demo_data.json"
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
+
+
+def _validate_comparison_metadata(before_bundle: dict, after_bundle: dict) -> None:
+    before_session = before_bundle["session"]
+    after_session = after_bundle["session"]
+    if before_session["phase"] != "before":
+        raise ValueError(f"before session phase must be before: {before_session['phase']}")
+    if after_session["phase"] != "after":
+        raise ValueError(f"after session phase must be after: {after_session['phase']}")
+    if before_session["route_name"] != after_session["route_name"]:
+        raise ValueError(
+            "route_name must match: "
+            f"{before_session['route_name']} != {after_session['route_name']}"
+        )
 
 
 def session_payload(name: str, bundle: dict, summary: dict) -> dict:
