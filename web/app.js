@@ -23,7 +23,15 @@ async function loadDemo() {
   payload = await response.json();
   populateSessions(payload.sessions);
   selectedSession = payload.sessions[0];
+  applyDefaultView(payload);
   render();
+}
+
+function applyDefaultView(data) {
+  const defaultView = data && data.presentation && data.presentation.default_view;
+  if (!["session", "comparison"].includes(defaultView)) return;
+  const select = document.getElementById("view-mode");
+  if (select) select.value = defaultView;
 }
 
 function populateSessions(sessions) {
@@ -43,9 +51,12 @@ function populateSessions(sessions) {
 
 function render() {
   clearLayers();
+  renderFinalSummary(payload);
+  renderThresholdSummary(payload);
   const viewMode = document.getElementById("view-mode").value;
+  const comparison = comparisonRows(payload);
   if (viewMode === "comparison") {
-    if ((payload.comparison || []).length === 0) {
+    if (comparison.length === 0) {
       renderPath(selectedSession.gps);
       renderImuHeatRoute(selectedSession.imu_windows || []);
       renderSegments(selectedSession.segments);
@@ -54,8 +65,8 @@ function render() {
       showDetails("이 payload에는 전/후 비교 데이터가 없습니다. 세션 선택 화면으로 확인하세요.");
       return;
     }
-    renderComparisonMode(payload.comparison, payload.sessions);
-    renderComparisonSummary(payload.comparison);
+    renderComparisonMode(comparison, payload.sessions || []);
+    renderComparisonSummary(comparison);
     return;
   }
 
@@ -161,11 +172,54 @@ function renderImuHeatRoute(windows) {
   }
 }
 
+function renderFinalSummary(data) {
+  const element = document.getElementById("final-summary");
+  if (!element) return;
+
+  const summary = data && data.final_summary;
+  if (!summary) {
+    element.innerHTML = '<p class="empty-summary">최종 데모 요약 없음</p>';
+    return;
+  }
+
+  const fields = [
+    ["route_name", "경로"],
+    ["session_count", "전체 세션"],
+    ["before_session_count", "before 세션"],
+    ["after_session_count", "after 세션"],
+    ["before_danger_windows", "before 위험 창"],
+    ["after_danger_windows", "after 위험 창"],
+    ["danger_reduction_rate", "위험 감소율"],
+    ["improved_segment_count", "개선 구간"],
+    ["worsened_segment_count", "악화 구간"],
+    ["new_risk_segment_count", "새 위험 구간"],
+    ["not_comparable_segment_count", "비교 불가"],
+  ];
+  const rows = summaryRows(summary, fields);
+  element.innerHTML = rows || '<p class="empty-summary">최종 데모 요약 없음</p>';
+}
+
+function renderThresholdSummary(data) {
+  const element = document.getElementById("threshold-summary");
+  if (!element) return;
+
+  const thresholds = data && data.thresholds;
+  if (!thresholds) {
+    element.innerHTML = '<p class="empty-summary">탐지 기준 없음</p>';
+    return;
+  }
+
+  const fields = [
+    ["caution_delta", "주의 delta"],
+    ["danger_delta", "위험 delta"],
+    ["danger_jerk", "위험 jerk"],
+  ];
+  const rows = summaryRows(thresholds, fields);
+  element.innerHTML = rows || '<p class="empty-summary">탐지 기준 없음</p>';
+}
+
 function renderComparisonSummary(comparison) {
-  const counts = comparison.reduce((acc, row) => {
-    acc[row.status] = (acc[row.status] || 0) + 1;
-    return acc;
-  }, {});
+  const counts = comparisonCounts(comparison);
   document.getElementById("summary").innerHTML = `
     <dl>
       <dt>개선</dt><dd>${counts.improved || 0}</dd>
@@ -174,6 +228,58 @@ function renderComparisonSummary(comparison) {
       <dt>비교 불가</dt><dd>${counts.not_comparable || 0}</dd>
     </dl>
   `;
+}
+
+function comparisonRows(data) {
+  if (!data) return [];
+  if ((data.comparison || []).length > 0) {
+    return data.comparison;
+  }
+  return data.group_comparison || [];
+}
+
+function comparisonCounts(comparison) {
+  const group = comparison.find((row) => row.improved_segment_count !== undefined);
+  if (group && comparison.every((row) => row.status === undefined)) {
+    return {
+      improved: Number(group.improved_segment_count || 0),
+      worsened: Number(group.worsened_segment_count || 0),
+      new_risk: Number(group.new_risk_segment_count || 0),
+      not_comparable: Number(group.not_comparable_segment_count || 0),
+    };
+  }
+
+  return comparison.reduce((acc, row) => {
+    acc[row.status] = (acc[row.status] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+function summaryRows(values, fields) {
+  const rows = fields
+    .filter(([key]) => values[key] !== undefined && values[key] !== null)
+    .map(([key, label]) => `<dt>${label}</dt><dd>${formatSummaryValue(values[key], key)}</dd>`);
+  if (rows.length === 0) return "";
+  return `<dl class="compact-summary">${rows.join("")}</dl>`;
+}
+
+function formatSummaryValue(value, key) {
+  const number = Number(value);
+  if (Number.isFinite(number)) {
+    if (key.endsWith("_rate")) return `${(number * 100).toFixed(1)}%`;
+    if (Number.isInteger(number)) return String(number);
+    return number.toFixed(2);
+  }
+  return escapeHtml(String(value));
+}
+
+function escapeHtml(value) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }
 
 function renderSessionSummary(session, data) {
@@ -272,7 +378,7 @@ function eventPopup(event) {
     <strong>${event.prediction}</strong><br>
     risk: ${Number(event.risk_score).toFixed(2)} / confidence: ${Number(event.confidence).toFixed(2)}<br>
     사진: ${event.photo_before || "없음"}<br>
-    GPS: ${event.lat.toFixed(6)}, ${event.lon.toFixed(6)}
+    GPS: ${Number(event.lat).toFixed(6)}, ${Number(event.lon).toFixed(6)}
   `;
 }
 

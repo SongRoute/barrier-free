@@ -42,6 +42,22 @@ python3 -m http.server 8000
 http://localhost:8000/web/
 ```
 
+## 최종 발표 데모
+
+장애물 전/후 반복 주행을 모아 최종 발표용 지도와 요약 리포트를 만들 때는 [최종 데모 실행 Runbook](docs/final_demo_runbook.md)을 따릅니다.
+
+```bash
+python3 -m barrier_free.cli final-demo sessions \
+  --route-name obstacle_demo_route \
+  --out web \
+  --report-out report \
+  --caution-threshold 0.35 \
+  --danger-threshold 0.75 \
+  --danger-jerk 12
+```
+
+이 결과는 휠체어 안전 최종 판정이 아니라, 관리자가 현장에서 확인할 위험 후보 구간을 좁히는 지도입니다.
+
 ## 주요 산출물
 
 - `demo_sessions/model.json`: mock 라벨로 학습한 모델

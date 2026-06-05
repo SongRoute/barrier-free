@@ -29,6 +29,8 @@ class WebExportTest(unittest.TestCase):
         self.assertIn('id="session-list"', index)
         self.assertIn('id="view-mode"', index)
         self.assertIn('id="imu-heat-toggle"', index)
+        self.assertIn('id="final-summary"', index)
+        self.assertIn('id="threshold-summary"', index)
         self.assertIn("leaflet", index.lower())
         self.assertIn("L.map", app)
         self.assertIn("renderSegments", app)
@@ -37,6 +39,10 @@ class WebExportTest(unittest.TestCase):
         self.assertIn("imuColor", app)
         self.assertIn("renderComparisonMode", app)
         self.assertIn("statusColor", app)
+        self.assertIn("applyDefaultView", app)
+        self.assertIn("renderFinalSummary", app)
+        self.assertIn("renderThresholdSummary", app)
+        self.assertIn("group_comparison", app)
 
 
 if __name__ == "__main__":

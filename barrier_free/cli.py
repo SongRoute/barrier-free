@@ -9,7 +9,7 @@ import json
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import collector, field_export, mock_data, model, schema, segments, session_audit
+from . import collector, field_export, final_demo, mock_data, model, risk_scoring, schema, segments, session_audit
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -88,6 +88,16 @@ def main(argv: list[str] | None = None) -> int:
     serve_many.add_argument("--host", default="0.0.0.0")
     serve_many.add_argument("--port", type=int, default=8000)
 
+    final_demo_cmd = sub.add_parser("final-demo", help="누적 세션으로 최종 before/after 데모 payload와 리포트를 생성한다")
+    final_demo_cmd.add_argument("path", type=Path)
+    final_demo_cmd.add_argument("--out", type=Path, default=Path("web"))
+    final_demo_cmd.add_argument("--report-out", type=Path, default=Path("report"))
+    final_demo_cmd.add_argument("--route-name", default=None)
+    final_demo_cmd.add_argument("--segment-meters", type=int, default=10)
+    final_demo_cmd.add_argument("--caution-threshold", type=float, default=0.35)
+    final_demo_cmd.add_argument("--danger-threshold", type=float, default=0.75)
+    final_demo_cmd.add_argument("--danger-jerk", type=float, default=12.0)
+
     args = parser.parse_args(argv)
     if args.command == "demo":
         path = collector.run_mock_collection(args.out, seed=args.seed, model_path=args.model)
@@ -149,6 +159,22 @@ def main(argv: list[str] | None = None) -> int:
         return _serve_session_preview(args)
     if args.command == "serve-sessions":
         return _serve_sessions_preview(args)
+    if args.command == "final-demo":
+        path = final_demo.export_final_demo(
+            sessions_root=args.path,
+            output_dir=args.out,
+            report_dir=args.report_out,
+            route_name=args.route_name,
+            thresholds=risk_scoring.RiskThresholds(
+                caution_delta=args.caution_threshold,
+                danger_delta=args.danger_threshold,
+                danger_jerk=args.danger_jerk,
+            ),
+            segment_meters=args.segment_meters,
+        )
+        print(path)
+        print(args.report_out / "final_summary.md")
+        return 0
     raise AssertionError(f"unknown command: {args.command}")
 
 

@@ -91,6 +91,25 @@ dd {
   margin: 0.75rem 0 1rem;
 }
 
+.summary-card {
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  margin: 0 0 16px;
+  font-size: 13px;
+}
+
+.compact-summary {
+  margin: 0;
+  gap: 6px 10px;
+}
+
+.empty-summary {
+  margin: 0;
+  color: #64748b;
+}
+
 .badge {
   border-radius: 999px;
   color: white;
