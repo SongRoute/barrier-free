@@ -35,6 +35,31 @@ class FieldExportTest(unittest.TestCase):
             self.assertIn("lon", imu_window)
             self.assertEqual(payload["comparison"], [])
 
+    def test_export_session_index_reads_multiple_session_folders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            dataset = mock_data.build_demo_dataset(seed=42)
+            before_path = schema.write_session_bundle(dataset["before"], root / "sessions" / "before")
+            after_path = schema.write_session_bundle(dataset["after"], root / "sessions" / "after")
+            (root / "sessions" / "notes.txt").write_text("ignore me", encoding="utf-8")
+
+            payload_path = field_export.export_session_index(
+                sessions_root=root / "sessions",
+                output_dir=root / "web",
+                segment_meters=10,
+            )
+
+            payload = json.loads(payload_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["source"]["type"], "field-session-index")
+            self.assertEqual(payload["source"]["session_count"], 2)
+            self.assertEqual(payload["source"]["session_paths"], [str(after_path), str(before_path)])
+            self.assertEqual(
+                [session["session"]["session_id"] for session in payload["sessions"]],
+                ["demo_after_run01", "demo_before_run01"],
+            )
+            self.assertEqual(payload["comparison"], [])
+            self.assertGreater(len(payload["sessions"][0]["imu_windows"]), 0)
+
     def test_imu_window_payloads_do_not_rescan_all_gps_rows_per_window(self):
         gps_rows = CountingRows(
             [

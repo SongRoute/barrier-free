@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+import csv
+import json
 import time
 from pathlib import Path
 
@@ -92,6 +94,7 @@ def run_sensor_collection(
     route_name: str = "pi_field_collection",
     run_index: int = 1,
     impact_threshold: float = 1.8,
+    flush_every_samples: int | None = None,
     sleeper=time.sleep,
     clock=time.time,
 ) -> Path:
@@ -112,29 +115,56 @@ def run_sensor_collection(
     last_gps = {"timestamp": started_at, "lat": 0.0, "lon": 0.0,
                 "gps_valid": 0, "speed_mps": 0.0}
     gps_every = max(1, int(round(sample_rate_hz)))  # 1초에 한 번만 GPS 읽기
+    flush_every = max(1, flush_every_samples or max(1, int(round(sample_rate_hz))))
+    output_path = output_dir / session_id
+    session = {
+        "session_id": session_id,
+        "phase": phase,
+        "run_index": run_index,
+        "started_at": _iso8601(started_at),
+        "route_name": route_name,
+        "device": _device_description(camera),
+        "model_version": "tiny-forest-mock" if classifier else "none",
+        "label_policy_version": "none",
+        "notes": "hardware sensor collection",
+    }
+    _initialize_streaming_session_files(output_path, session)
 
-    for i in range(sample_count):
-        ts = clock()
-        raw_imu.append(imu_reader.read_sample(timestamp=ts))
-        if i % gps_every == 0:
-            last_gps = gps_reader.read_sample()
-        gps_rows.append(dict(last_gps, timestamp=ts))
-        if sleeper is not None:
-            sleeper(0 if sample_count <= 10 else interval)
+    interrupted = False
+    with (output_path / "raw_imu.csv").open("a", newline="", encoding="utf-8") as raw_file, (
+        output_path / "gps.csv"
+    ).open("a", newline="", encoding="utf-8") as gps_file:
+        raw_writer = csv.DictWriter(raw_file, fieldnames=schema.RAW_IMU_FIELDS)
+        gps_writer = csv.DictWriter(gps_file, fieldnames=schema.GPS_FIELDS)
+        try:
+            for i in range(sample_count):
+                ts = clock()
+                imu_row = imu_reader.read_sample(timestamp=ts)
+                raw_imu.append(imu_row)
+                raw_writer.writerow({field: imu_row.get(field, "") for field in schema.RAW_IMU_FIELDS})
 
+                if i % gps_every == 0:
+                    last_gps = gps_reader.read_sample()
+                gps_row = dict(last_gps, timestamp=ts)
+                gps_rows.append(gps_row)
+                gps_writer.writerow({field: gps_row.get(field, "") for field in schema.GPS_FIELDS})
+
+                if (i + 1) % flush_every == 0:
+                    raw_file.flush()
+                    gps_file.flush()
+                if sleeper is not None:
+                    sleeper(0 if sample_count <= 10 else interval)
+        except KeyboardInterrupt:
+            interrupted = True
+        finally:
+            raw_file.flush()
+            gps_file.flush()
+
+    if interrupted:
+        session["notes"] = "hardware sensor collection (partial; interrupted)"
 
     bundle = {
-        "session": {
-            "session_id": session_id,
-            "phase": phase,
-            "run_index": run_index,
-            "started_at": _iso8601(started_at),
-            "route_name": route_name,
-            "device": "Raspberry Pi 3B + MPU6050 + NEO-M8N + USB webcam",
-            "model_version": "tiny-forest-mock" if classifier else "none",
-            "label_policy_version": "none",
-            "notes": "hardware sensor collection",
-        },
+        "session": session,
         "raw_imu": raw_imu,
         "gps": gps_rows,
         "events": [],
@@ -147,11 +177,15 @@ def run_sensor_collection(
         gps_rows,
         classifier=classifier,
         camera=camera,
-        output_dir=output_dir / session_id,
+        output_dir=output_path,
         impact_threshold=impact_threshold,
     )
     bundle["events"] = events
-    return schema.write_session_bundle(bundle, output_dir / session_id)
+    schema.validate_session_bundle(bundle)
+    _write_session_json(output_path, session)
+    schema.write_csv(output_path / "events.csv", schema.EVENT_FIELDS, events)
+    schema.write_csv(output_path / "labels.csv", schema.LABEL_FIELDS, [])
+    return output_path
 
 
 def _load_model(model_path: Path | None) -> model.TinyForestClassifier | None:
@@ -175,10 +209,10 @@ def _events_from_windows(
     impact_threshold: float,
 ) -> list[dict]:
     events = []
-    for index, window in enumerate(windows, start=1):
-        speed = features.nearest_speed_for_window(window, gps_rows)
+    nearest_gps_rows = features.nearest_gps_rows_for_windows(windows, gps_rows)
+    for index, (window, gps_row) in enumerate(zip(windows, nearest_gps_rows), start=1):
+        speed = float(gps_row.get("speed_mps", 0.0))
         feature_row = features.extract_window_features(window, speed_mps=speed)
-        gps_row = _nearest_gps(window, gps_rows)
         if classifier is None:
             if feature_row["accel_mag_max"] < impact_threshold:
                 continue
@@ -222,6 +256,28 @@ def _events_from_windows(
             }
         )
     return events
+
+
+def _initialize_streaming_session_files(output_path: Path, session: dict) -> None:
+    output_path.mkdir(parents=True, exist_ok=True)
+    (output_path / "photos").mkdir(exist_ok=True)
+    _write_session_json(output_path, session)
+    schema.write_csv(output_path / "raw_imu.csv", schema.RAW_IMU_FIELDS, [])
+    schema.write_csv(output_path / "gps.csv", schema.GPS_FIELDS, [])
+    schema.write_csv(output_path / "events.csv", schema.EVENT_FIELDS, [])
+    schema.write_csv(output_path / "labels.csv", schema.LABEL_FIELDS, [])
+
+
+def _write_session_json(output_path: Path, session: dict) -> None:
+    (output_path / "session.json").write_text(
+        json.dumps(session, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _device_description(camera) -> str:
+    camera_text = "USB webcam" if camera is not None else "no webcam"
+    return f"Raspberry Pi 3B + MPU6050 + NEO-M8N + {camera_text}"
 
 
 def _iso8601(timestamp: float) -> str:

@@ -99,6 +99,59 @@ def export_session_preview(
     return path
 
 
+def export_session_index(
+    *,
+    sessions_root: Path,
+    output_dir: Path,
+    segment_meters: int = 10,
+) -> Path:
+    """여러 수집 세션 폴더를 한 지도에서 선택 확인할 수 있는 payload로 저장한다."""
+
+    session_paths = discover_session_paths(sessions_root)
+    sessions = []
+    for session_path in session_paths:
+        bundle = read_session_folder(session_path)
+        summary = segments.aggregate_events(bundle["events"], segment_meters=segment_meters)
+        sessions.append(session_payload(bundle["session"]["session_id"], bundle, summary))
+
+    payload = {
+        "source": {
+            "type": "field-session-index",
+            "sessions_root": str(sessions_root),
+            "segment_meters": segment_meters,
+            "session_count": len(session_paths),
+            "session_paths": [str(path) for path in session_paths],
+        },
+        "model": {
+            "type": "field-or-threshold",
+            "version": "mixed",
+            "training_rows": 0,
+            "recall": None,
+            "confusion_matrix": {},
+        },
+        "sessions": sessions,
+        "comparison": [],
+    }
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    path = output_dir / "demo_data.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
+
+
+def discover_session_paths(sessions_root: Path) -> list[Path]:
+    """session.json을 가진 세션 폴더를 안정적인 순서로 찾는다."""
+
+    if (sessions_root / "session.json").exists():
+        return [sessions_root]
+    if not sessions_root.exists():
+        raise FileNotFoundError(f"sessions root not found: {sessions_root}")
+    return sorted(
+        path for path in sessions_root.iterdir()
+        if path.is_dir() and (path / "session.json").exists()
+    )
+
+
 def _validate_comparison_metadata(before_bundle: dict, after_bundle: dict) -> None:
     before_session = before_bundle["session"]
     after_session = after_bundle["session"]
@@ -129,7 +182,7 @@ def imu_window_payloads(bundle: dict) -> list[dict]:
 
     windows = features.window_imu_rows(bundle["raw_imu"], window_seconds=1.0)
     gps_rows = bundle["gps"]
-    nearest_gps_rows = _nearest_gps_rows_for_windows(windows, gps_rows)
+    nearest_gps_rows = features.nearest_gps_rows_for_windows(windows, gps_rows)
     payloads = []
     for index, (window, gps_row) in enumerate(zip(windows, nearest_gps_rows), start=1):
         speed = float(gps_row.get("speed_mps", 0.0))
@@ -163,31 +216,6 @@ def read_session_folder(path: Path) -> dict:
     }
     schema.validate_session_bundle(bundle)
     return bundle
-
-
-def _nearest_gps_rows_for_windows(windows: list[list[dict]], gps_rows: list[dict]) -> list[dict]:
-    if not windows:
-        return []
-    if not gps_rows:
-        return [_invalid_gps_row(window[0]["timestamp"]) for window in windows]
-
-    sorted_gps = sorted(gps_rows, key=lambda row: row["timestamp"])
-    nearest_rows = []
-    cursor = 0
-    for window in windows:
-        middle = (window[0]["timestamp"] + window[-1]["timestamp"]) / 2
-        while cursor + 1 < len(sorted_gps):
-            current_distance = abs(sorted_gps[cursor]["timestamp"] - middle)
-            next_distance = abs(sorted_gps[cursor + 1]["timestamp"] - middle)
-            if next_distance > current_distance:
-                break
-            cursor += 1
-        nearest_rows.append(sorted_gps[cursor])
-    return nearest_rows
-
-
-def _invalid_gps_row(timestamp: float) -> dict:
-    return {"timestamp": timestamp, "lat": 0.0, "lon": 0.0, "gps_valid": 0, "speed_mps": 0.0}
 
 
 def _accel_delta_max(window: list[dict]) -> float:

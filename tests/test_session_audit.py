@@ -58,6 +58,21 @@ class SessionAuditTest(unittest.TestCase):
             self.assertFalse(report["ok"])
             self.assertIn("이벤트 사진 파일 누락", report["issues"])
 
+    def test_audit_session_accepts_no_camera_events_with_empty_photo_references(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bundle = mock_data.build_demo_dataset(seed=13)["before"]
+            for event in bundle["events"]:
+                event["photo_before"] = ""
+                event["photo_after"] = ""
+            path = schema.write_session_bundle(bundle, Path(tmp) / "session")
+
+            report = session_audit.audit_session(path)
+
+            self.assertEqual(report["expected_photo_count"], 0)
+            self.assertEqual(report["missing_photo_count"], 0)
+            self.assertNotIn("이벤트가 있지만 사진이 없음", report["issues"])
+            self.assertTrue(report["ok"])
+
 
 def _write_event_photos(path: Path, events: list[dict]) -> None:
     for event in events:

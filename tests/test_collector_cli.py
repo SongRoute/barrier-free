@@ -88,6 +88,61 @@ class CollectorCliTest(unittest.TestCase):
             self.assertEqual(session["route_name"], "campus_test_route")
             self.assertEqual(session["run_index"], 2)
 
+    def test_sensor_collection_without_camera_leaves_photo_references_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = collector.run_sensor_collection(
+                Path(tmp),
+                imu_reader=FakeIMU(),
+                gps_reader=FakeGPS(),
+                camera=None,
+                duration_seconds=1.0,
+                sample_rate_hz=5,
+                sleeper=None,
+            )
+
+            events = list(_read_csv(path / "events.csv"))
+            self.assertGreater(len(events), 0)
+            self.assertEqual({row["photo_before"] for row in events}, {""})
+            self.assertEqual({row["photo_after"] for row in events}, {""})
+
+    def test_sensor_collection_flushes_raw_files_during_collection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            session_id = "streaming_checkpoint_test"
+            expected_path = out / session_id
+            imu = InspectingIMU(expected_path)
+
+            collector.run_sensor_collection(
+                out,
+                imu_reader=imu,
+                gps_reader=FakeGPS(),
+                camera=None,
+                duration_seconds=2.0,
+                sample_rate_hz=5,
+                session_id=session_id,
+                sleeper=None,
+            )
+
+            self.assertTrue(imu.saw_incremental_files)
+
+    def test_sensor_collection_returns_partial_session_on_keyboard_interrupt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = collector.run_sensor_collection(
+                Path(tmp),
+                imu_reader=FakeIMU(),
+                gps_reader=FakeGPS(),
+                camera=None,
+                duration_seconds=5.0,
+                sample_rate_hz=5,
+                session_id="partial_interrupt_test",
+                sleeper=InterruptingSleeper(raise_on_call=4),
+            )
+
+            self.assertTrue((path / "session.json").exists())
+            self.assertGreaterEqual(len(list(_read_csv(path / "raw_imu.csv"))), 4)
+            self.assertGreaterEqual(len(list(_read_csv(path / "gps.csv"))), 4)
+            self.assertTrue((path / "events.csv").exists())
+
 
 def _read_csv(path: Path):
     import csv
@@ -112,6 +167,23 @@ class FakeIMU:
             "gy": 0.0,
             "gz": 0.0,
         }
+
+
+class InspectingIMU(FakeIMU):
+    def __init__(self, session_path: Path):
+        super().__init__()
+        self.session_path = session_path
+        self.saw_incremental_files = False
+
+    def read_sample(self, timestamp=None):
+        if self.index >= 1:
+            raw_path = self.session_path / "raw_imu.csv"
+            gps_path = self.session_path / "gps.csv"
+            if raw_path.exists() and gps_path.exists():
+                raw_lines = raw_path.read_text(encoding="utf-8").strip().splitlines()
+                gps_lines = gps_path.read_text(encoding="utf-8").strip().splitlines()
+                self.saw_incremental_files = len(raw_lines) >= 2 and len(gps_lines) >= 2
+        return super().read_sample(timestamp=timestamp)
 
 
 class FakeGPS:
@@ -143,6 +215,17 @@ class FakeClock:
     def __call__(self):
         self.now += 0.2
         return self.now
+
+
+class InterruptingSleeper:
+    def __init__(self, raise_on_call: int):
+        self.raise_on_call = raise_on_call
+        self.calls = 0
+
+    def __call__(self, seconds):
+        self.calls += 1
+        if self.calls >= self.raise_on_call:
+            raise KeyboardInterrupt
 
 
 if __name__ == "__main__":

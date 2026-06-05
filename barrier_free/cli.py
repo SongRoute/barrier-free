@@ -52,6 +52,8 @@ def main(argv: list[str] | None = None) -> int:
     collect.add_argument("--gps-port", default="/dev/serial0")
     collect.add_argument("--gps-baudrate", type=int, default=9600)
     collect.add_argument("--camera-device", default="/dev/video0")
+    collect.add_argument("--no-camera", action="store_true", help="웹캠 없이 IMU/GPS만 수집한다")
+    collect.add_argument("--flush-every-samples", type=int, default=None, help="수집 CSV flush 주기")
 
     compare = sub.add_parser("compare-sessions", help="실제 before/after 세션을 web demo_data.json으로 변환한다")
     compare.add_argument("--before", type=Path, required=True)
@@ -67,12 +69,24 @@ def main(argv: list[str] | None = None) -> int:
     preview.add_argument("--out", type=Path, default=Path("web"))
     preview.add_argument("--segment-meters", type=int, default=10)
 
+    preview_many = sub.add_parser("preview-sessions", help="여러 수집 세션을 한 지도 선택 목록용 demo_data.json으로 변환한다")
+    preview_many.add_argument("path", type=Path)
+    preview_many.add_argument("--out", type=Path, default=Path("web"))
+    preview_many.add_argument("--segment-meters", type=int, default=10)
+
     serve = sub.add_parser("serve-session", help="단일 수집 세션을 지도 확인용으로 변환하고 웹 서버를 실행한다")
     serve.add_argument("path", type=Path)
     serve.add_argument("--out", type=Path, default=Path("web"))
     serve.add_argument("--segment-meters", type=int, default=10)
     serve.add_argument("--host", default="0.0.0.0")
     serve.add_argument("--port", type=int, default=8000)
+
+    serve_many = sub.add_parser("serve-sessions", help="여러 수집 세션을 한 지도 선택 목록으로 변환하고 웹 서버를 실행한다")
+    serve_many.add_argument("path", type=Path)
+    serve_many.add_argument("--out", type=Path, default=Path("web"))
+    serve_many.add_argument("--segment-meters", type=int, default=10)
+    serve_many.add_argument("--host", default="0.0.0.0")
+    serve_many.add_argument("--port", type=int, default=8000)
 
     args = parser.parse_args(argv)
     if args.command == "demo":
@@ -123,8 +137,18 @@ def main(argv: list[str] | None = None) -> int:
         print(path)
         print(json.dumps(session_audit.audit_session(args.path), ensure_ascii=False, indent=2))
         return 0
+    if args.command == "preview-sessions":
+        path = field_export.export_session_index(
+            sessions_root=args.path,
+            output_dir=args.out,
+            segment_meters=args.segment_meters,
+        )
+        print(path)
+        return 0
     if args.command == "serve-session":
         return _serve_session_preview(args)
+    if args.command == "serve-sessions":
+        return _serve_sessions_preview(args)
     raise AssertionError(f"unknown command: {args.command}")
 
 
@@ -293,11 +317,12 @@ def _collect_from_hardware(args) -> Path:
     from .hardware.gps_neo_m8n import NEOM8NReader
     from .hardware.imu_mpu6050 import MPU6050Reader
 
+    camera = None if args.no_camera else USBCamera(device=args.camera_device)
     return collector.run_sensor_collection(
         args.out,
         imu_reader=MPU6050Reader(),
         gps_reader=NEOM8NReader(port=args.gps_port, baudrate=args.gps_baudrate),
-        camera=USBCamera(device=args.camera_device),
+        camera=camera,
         duration_seconds=args.duration,
         sample_rate_hz=args.rate,
         model_path=args.model,
@@ -305,6 +330,7 @@ def _collect_from_hardware(args) -> Path:
         phase=args.phase,
         route_name=args.route_name,
         run_index=args.run_index,
+        flush_every_samples=args.flush_every_samples,
     )
 
 
@@ -330,6 +356,36 @@ def _serve_session_preview(args) -> int:
         flush=True,
     )
 
+    return _serve_web(args, path)
+
+
+def _serve_sessions_preview(args) -> int:
+    path = field_export.export_session_index(
+        sessions_root=args.path,
+        output_dir=args.out,
+        segment_meters=args.segment_meters,
+    )
+    session_paths = field_export.discover_session_paths(args.path)
+    display_host = "localhost" if args.host in {"0.0.0.0", "::"} else args.host
+    print(
+        json.dumps(
+            {
+                "payload": str(path),
+                "url": f"http://{display_host}:{args.port}/web/",
+                "pi_url_hint": f"http://<raspberry-pi-ip>:{args.port}/web/",
+                "session_count": len(session_paths),
+                "session_paths": [str(path) for path in session_paths],
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        flush=True,
+    )
+
+    return _serve_web(args, path)
+
+
+def _serve_web(args, payload_path: Path) -> int:
     handler = functools.partial(SimpleHTTPRequestHandler, directory=str(_project_root()))
     server = ThreadingHTTPServer((args.host, args.port), handler)
     try:

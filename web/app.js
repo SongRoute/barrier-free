@@ -45,8 +45,17 @@ function render() {
   clearLayers();
   const viewMode = document.getElementById("view-mode").value;
   if (viewMode === "comparison") {
+    if ((payload.comparison || []).length === 0) {
+      renderPath(selectedSession.gps);
+      renderImuHeatRoute(selectedSession.imu_windows || []);
+      renderSegments(selectedSession.segments);
+      renderEvents(selectedSession.events);
+      renderSessionSummary(selectedSession, payload);
+      showDetails("이 payload에는 전/후 비교 데이터가 없습니다. 세션 선택 화면으로 확인하세요.");
+      return;
+    }
     renderComparisonMode(payload.comparison, payload.sessions);
-    renderSummary(payload.comparison);
+    renderComparisonSummary(payload.comparison);
     return;
   }
 
@@ -54,7 +63,7 @@ function render() {
   renderImuHeatRoute(selectedSession.imu_windows || []);
   renderSegments(selectedSession.segments);
   renderEvents(selectedSession.events);
-  renderSummary(payload.comparison);
+  renderSessionSummary(selectedSession, payload);
 }
 
 function renderPath(gpsRows) {
@@ -152,7 +161,7 @@ function renderImuHeatRoute(windows) {
   }
 }
 
-function renderSummary(comparison) {
+function renderComparisonSummary(comparison) {
   const counts = comparison.reduce((acc, row) => {
     acc[row.status] = (acc[row.status] || 0) + 1;
     return acc;
@@ -163,6 +172,26 @@ function renderSummary(comparison) {
       <dt>악화</dt><dd>${counts.worsened || 0}</dd>
       <dt>새 위험</dt><dd>${counts.new_risk || 0}</dd>
       <dt>비교 불가</dt><dd>${counts.not_comparable || 0}</dd>
+    </dl>
+  `;
+}
+
+function renderSessionSummary(session, data) {
+  const gpsRows = session.gps || [];
+  const validGpsRows = gpsRows.filter((row) => Number(row.gps_valid) === 1);
+  const gpsRatio = gpsRows.length === 0 ? 0 : validGpsRows.length / gpsRows.length;
+  const windows = session.imu_windows || [];
+  const roughWindows = windows.filter((row) => Number(row.accel_delta_max) >= 0.6);
+  const imuRowCount = windows.reduce((sum, row) => sum + Number(row.sample_count || 0), 0);
+  document.getElementById("summary").innerHTML = `
+    <dl>
+      <dt>전체 세션</dt><dd>${(data.sessions || []).length}</dd>
+      <dt>선택 세션</dt><dd>${session.session.session_id}</dd>
+      <dt>phase</dt><dd>${session.session.phase}</dd>
+      <dt>IMU row</dt><dd>${imuRowCount}</dd>
+      <dt>GPS valid</dt><dd>${(gpsRatio * 100).toFixed(1)}%</dd>
+      <dt>이벤트</dt><dd>${(session.events || []).length}</dd>
+      <dt>거친 IMU 창</dt><dd>${roughWindows.length}</dd>
     </dl>
   `;
 }

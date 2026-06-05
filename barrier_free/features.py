@@ -68,6 +68,29 @@ def nearest_speed_for_window(window: list[dict], gps_rows: list[dict]) -> float:
     return float(nearest.get("speed_mps", 0.0))
 
 
+def nearest_gps_rows_for_windows(windows: list[list[dict]], gps_rows: list[dict]) -> list[dict]:
+    """각 IMU 창 중간 timestamp와 가장 가까운 GPS row를 한 번의 전진 scan으로 찾는다."""
+
+    if not windows:
+        return []
+    if not gps_rows:
+        return [_invalid_gps_row(window[0]["timestamp"]) for window in windows]
+
+    sorted_gps = sorted(gps_rows, key=lambda row: row["timestamp"])
+    nearest_rows = []
+    cursor = 0
+    for window in windows:
+        middle = (window[0]["timestamp"] + window[-1]["timestamp"]) / 2
+        while cursor + 1 < len(sorted_gps):
+            current_distance = abs(sorted_gps[cursor]["timestamp"] - middle)
+            next_distance = abs(sorted_gps[cursor + 1]["timestamp"] - middle)
+            if next_distance > current_distance:
+                break
+            cursor += 1
+        nearest_rows.append(sorted_gps[cursor])
+    return nearest_rows
+
+
 def _jerk_values(rows: list[dict]) -> list[float]:
     values = []
     for prev, current in zip(rows, rows[1:]):
@@ -88,3 +111,7 @@ def _pstdev(values: list[float]) -> float:
     if len(values) <= 1:
         return 0.0
     return statistics.pstdev(values)
+
+
+def _invalid_gps_row(timestamp: float) -> dict:
+    return {"timestamp": timestamp, "lat": 0.0, "lon": 0.0, "gps_valid": 0, "speed_mps": 0.0}

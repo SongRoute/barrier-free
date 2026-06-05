@@ -20,7 +20,17 @@ class PiCliTest(unittest.TestCase):
         self.assertIn("compare-sessions", text)
         self.assertIn("audit-session", text)
         self.assertIn("preview-session", text)
+        self.assertIn("preview-sessions", text)
         self.assertIn("serve-session", text)
+        self.assertIn("serve-sessions", text)
+
+    def test_collect_help_lists_no_camera_option(self):
+        output = io.StringIO()
+        with self.assertRaises(SystemExit):
+            with redirect_stdout(output):
+                cli.main(["collect", "--help"])
+
+        self.assertIn("--no-camera", output.getvalue())
 
 
 if __name__ == "__main__":

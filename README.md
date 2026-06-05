@@ -1,6 +1,6 @@
 # 베리어프리 교내 도로 위험 후보 지도
 
-자전거에 장착한 Raspberry Pi 3B, IMU, GPS, 웹캠을 사용해 교내 오래된 도로의 **소형 바퀴 이동 위험 후보 구간**을 찾고, 정비 전후 개선 정도를 지도에서 확인하는 MVP입니다.
+자전거에 장착한 Raspberry Pi 3B, IMU, GPS, 선택적 웹캠을 사용해 교내 오래된 도로의 **소형 바퀴 이동 위험 후보 구간**을 찾고, 정비 전후 개선 정도를 지도에서 확인하는 MVP입니다.
 
 첫 버전은 실제 휠체어 위험을 확정 판정하지 않습니다. 실제 물리 실험 전까지는 deterministic mock 데이터를 사용해 end-to-end 흐름을 개발하고 검증합니다.
 
@@ -106,6 +106,20 @@ python3 -m barrier_free.cli collect \
   --camera-device /dev/video0
 ```
 
+웹캠 없이 IMU/GPS만 빠르게 수집:
+
+```bash
+python3 -m barrier_free.cli collect \
+  --out sessions \
+  --duration 120 \
+  --rate 20 \
+  --phase before \
+  --session-id before_no_camera_001 \
+  --route-name campus_test_route \
+  --gps-port /dev/serial0 \
+  --no-camera
+```
+
 모델을 사용한 추론 수집:
 
 ```bash
@@ -119,6 +133,8 @@ python3 -m barrier_free.cli collect \
 ```
 
 모델 없이 수집하면 `candidate` 이벤트를 저장합니다. 모델을 주면 `caution`/`danger` 이벤트를 저장합니다.
+
+실제 센서 수집은 `raw_imu.csv`와 `gps.csv`를 수집 중에도 주기적으로 저장합니다. 기본 flush 주기는 샘플링 주파수 기준 약 1초이며, 필요하면 `--flush-every-samples`로 조정할 수 있습니다. `Ctrl+C`로 중간 종료해도 현재까지의 partial 세션을 정리해서 남깁니다.
 
 ## 수집 직후 지도에서 확인하기
 
@@ -155,6 +171,17 @@ http://라즈베리파이_IP:8000/web/
 - 빨강: 강한 충격 후보
 
 이벤트 점은 threshold를 넘은 후보만 보여주고, IMU 강도 경로는 전체 주행의 거칠기 흐름을 보여줍니다.
+
+여러 수집 세션을 한 번에 선택해서 확인하려면 `sessions/` 루트로 실행합니다.
+
+```bash
+python3 -m barrier_free.cli serve-sessions \
+  sessions \
+  --host 0.0.0.0 \
+  --port 8000
+```
+
+웹 지도 상단의 `세션` 드롭다운에서 누적된 세션을 골라 IMU 강도, 이벤트, GPS valid 비율을 비교 확인할 수 있습니다.
 
 ## GPS serial 오류 대응
 

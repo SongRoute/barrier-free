@@ -26,7 +26,7 @@ def audit_session(path: Path) -> dict:
         issues.append("raw_imu.csv가 비어 있음")
     if gps_valid_ratio < 0.8:
         issues.append("GPS valid 비율이 80% 미만")
-    if event_count > 0 and photo_count == 0:
+    if expected_photos and photo_count == 0:
         issues.append("이벤트가 있지만 사진이 없음")
     if missing_photos:
         issues.append("이벤트 사진 파일 누락")
