@@ -17,6 +17,8 @@ class PiCliTest(unittest.TestCase):
         self.assertIn("check-gps", text)
         self.assertIn("check-camera", text)
         self.assertIn("collect", text)
+        self.assertIn("compare-sessions", text)
+        self.assertIn("audit-session", text)
 
 
 if __name__ == "__main__":

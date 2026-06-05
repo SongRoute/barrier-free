@@ -7,7 +7,7 @@ import csv
 import json
 from pathlib import Path
 
-from . import collector, field_export, mock_data, model, schema, segments
+from . import collector, field_export, mock_data, model, schema, segments, session_audit
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -57,6 +57,9 @@ def main(argv: list[str] | None = None) -> int:
     compare.add_argument("--out", type=Path, default=Path("web"))
     compare.add_argument("--segment-meters", type=int, default=10)
 
+    audit = sub.add_parser("audit-session", help="수집 세션의 IMU/GPS/이벤트/사진 품질을 요약한다")
+    audit.add_argument("path", type=Path)
+
     args = parser.parse_args(argv)
     if args.command == "demo":
         path = collector.run_mock_collection(args.out, seed=args.seed, model_path=args.model)
@@ -93,6 +96,9 @@ def main(argv: list[str] | None = None) -> int:
             segment_meters=args.segment_meters,
         )
         print(path)
+        return 0
+    if args.command == "audit-session":
+        print(json.dumps(session_audit.audit_session(args.path), ensure_ascii=False, indent=2))
         return 0
     raise AssertionError(f"unknown command: {args.command}")
 
