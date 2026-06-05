@@ -14,7 +14,11 @@ class NEOM8NReader:
     def __init__(self, port: str = "/dev/serial0", baudrate: int = 9600, serial_obj=None):
         self.serial = serial_obj if serial_obj is not None else _open_serial(port, baudrate)
 
-    def read_sample(self, timeout_lines: int = 20) -> dict:
+    def read_sample(self, timeout_lines: int = 25) -> dict:
+        try:
+            self.serial.reset_input_buffer()
+        except Exception:
+            pass
         for _ in range(timeout_lines):
             raw = self.serial.readline()
             if isinstance(raw, bytes):
@@ -57,7 +61,7 @@ def _open_serial(port: str, baudrate: int):
         raise RuntimeError(
             "NEO-M8N requires pyserial on Raspberry Pi. Install pyserial and enable UART."
         ) from exc
-    return serial.Serial(port, baudrate=baudrate, timeout=1)
+    return serial.Serial(port, baudrate=baudrate, timeout=0.2)
 
 
 def _parse_lat_lon(value: str, hemisphere: str) -> float:

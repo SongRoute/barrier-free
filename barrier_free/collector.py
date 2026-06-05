@@ -104,14 +104,21 @@ def run_sensor_collection(
     raw_imu = []
     gps_rows = []
     sample_count = max(1, int(duration_seconds * sample_rate_hz))
-    interval = 1.0 / sample_rate_hz
 
-    for _ in range(sample_count):
+    interval = 1.0 / sample_rate_hz
+    last_gps = {"timestamp": started_at, "lat": 0.0, "lon": 0.0,
+                "gps_valid": 0, "speed_mps": 0.0}
+    gps_every = max(1, int(round(sample_rate_hz)))  # 1초에 한 번만 GPS 읽기
+
+    for i in range(sample_count):
         ts = clock()
         raw_imu.append(imu_reader.read_sample(timestamp=ts))
-        gps_rows.append(gps_reader.read_sample())
+        if i % gps_every == 0:
+            last_gps = gps_reader.read_sample()
+        gps_rows.append(dict(last_gps, timestamp=ts))
         if sleeper is not None:
             sleeper(0 if sample_count <= 10 else interval)
+
 
     bundle = {
         "session": {
