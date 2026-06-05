@@ -7,7 +7,7 @@ import csv
 import json
 from pathlib import Path
 
-from . import collector, mock_data, model, schema, segments
+from . import collector, field_export, mock_data, model, schema, segments
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,6 +47,12 @@ def main(argv: list[str] | None = None) -> int:
     collect.add_argument("--gps-baudrate", type=int, default=9600)
     collect.add_argument("--camera-device", default="/dev/video0")
 
+    compare = sub.add_parser("compare-sessions", help="실제 before/after 세션을 web demo_data.json으로 변환한다")
+    compare.add_argument("--before", type=Path, required=True)
+    compare.add_argument("--after", type=Path, required=True)
+    compare.add_argument("--out", type=Path, default=Path("web"))
+    compare.add_argument("--segment-meters", type=int, default=10)
+
     args = parser.parse_args(argv)
     if args.command == "demo":
         path = collector.run_mock_collection(args.out, seed=args.seed, model_path=args.model)
@@ -73,6 +79,15 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "collect":
         path = _collect_from_hardware(args)
+        print(path)
+        return 0
+    if args.command == "compare-sessions":
+        path = field_export.export_session_comparison(
+            before_path=args.before,
+            after_path=args.after,
+            output_dir=args.out,
+            segment_meters=args.segment_meters,
+        )
         print(path)
         return 0
     raise AssertionError(f"unknown command: {args.command}")
