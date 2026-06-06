@@ -20,6 +20,7 @@ def export_final_demo(
     route_name: str | None,
     thresholds: risk_scoring.RiskThresholds,
     segment_meters: int = 10,
+    include_synthetic: bool = False,
 ) -> Path:
     """누적 세션을 before/after 그룹으로 분석해 web payload와 Markdown 리포트를 저장한다."""
 
@@ -37,6 +38,9 @@ def export_final_demo(
             continue
         if session["phase"] not in {"before", "after"}:
             skipped_records.append({"path": str(path), "reason": "phase is not before/after", "session": session})
+            continue
+        if _is_synthetic_session(session) and not include_synthetic:
+            skipped_records.append({"path": str(path), "reason": "synthetic after excluded", "session": session})
             continue
 
         scored_windows = _scored_windows_with_context(bundle, thresholds, segment_meters=segment_meters)
@@ -73,7 +77,15 @@ def export_final_demo(
         after_coverage=after_coverage,
     )
     comparison = _enrich_comparison(comparison, before_records, after_records, segment_meters=segment_meters)
-    final_summary = _final_summary(selected_records, before_records, after_records, comparison, route_name)
+    synthetic_session_count = sum(1 for record in selected_records if _is_synthetic_session(record["bundle"]["session"]))
+    final_summary = _final_summary(
+        selected_records,
+        before_records,
+        after_records,
+        comparison,
+        route_name,
+        synthetic_session_count=synthetic_session_count,
+    )
 
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / "final_summary.md"
@@ -92,6 +104,8 @@ def export_final_demo(
             "segment_meters": segment_meters,
             "window_seconds": 1.0,
             "report_path": str(report_path),
+            "synthetic_session_count": synthetic_session_count,
+            "include_synthetic": include_synthetic,
         },
         "thresholds": {
             "version": THRESHOLD_VERSION,
@@ -195,6 +209,8 @@ def _final_summary(
     after_records: list[dict],
     comparison: list[dict],
     route_name: str | None,
+    *,
+    synthetic_session_count: int,
 ) -> dict:
     counts = Counter(row["status"] for row in comparison)
     before_danger = _window_count(before_records, "danger")
@@ -204,6 +220,7 @@ def _final_summary(
     return {
         "route_name": route_name or _route_name_from_records(selected_records),
         "session_count": len(selected_records),
+        "synthetic_session_count": synthetic_session_count,
         "before_session_count": len(before_records),
         "after_session_count": len(after_records),
         "before_danger_windows": before_danger,
@@ -284,6 +301,19 @@ def _markdown_report(
     lines = [
         "# 소형 바퀴 이동 위험 후보 지도 최종 요약",
         "",
+    ]
+    if final_summary["synthetic_session_count"] > 0:
+        lines.extend(
+            [
+                "## synthetic after 경고",
+                "",
+                "- 이 리포트에는 실제 after 수집 전 파이프라인 검증용 synthetic after 세션이 포함되어 있습니다.",
+                "- 실제 실험 결과로 주장하지 말고, 소프트웨어 동작 확인 및 발표 화면 점검용으로만 사용하세요.",
+                "",
+            ]
+        )
+    lines.extend(
+        [
         "## 한 줄 결론",
         "",
         f"장애물 설치 주행 대비 장애물 제거 후 주행에서 danger window 감소율은 {danger_reduction}, 전체 위험 window 감소율은 {risk_reduction}입니다.",
@@ -297,6 +327,7 @@ def _markdown_report(
         "## 핵심 지표",
         "",
         f"- 사용 세션 수: {final_summary['session_count']}",
+        f"- synthetic 세션 수: {final_summary['synthetic_session_count']}",
         f"- before 세션 수: {final_summary['before_session_count']}",
         f"- after 세션 수: {final_summary['after_session_count']}",
         f"- before danger window: {final_summary['before_danger_windows']}",
@@ -313,7 +344,8 @@ def _markdown_report(
         "",
         "## 사용한 세션",
         "",
-    ]
+        ]
+    )
     for record in selected_records:
         session = record["bundle"]["session"]
         lines.append(f"- {session['session_id']} ({session['phase']}, route={session['route_name']})")
@@ -391,3 +423,11 @@ def _headline(final_summary: dict) -> str:
 
 def _percent(value: float) -> str:
     return f"{value * 100:.1f}%"
+
+
+def _is_synthetic_session(session: dict) -> bool:
+    return (
+        bool(session.get("synthetic_after"))
+        or str(session.get("model_version", "")) == "synthetic-after"
+        or str(session.get("session_id", "")).startswith("after_mock_")
+    )

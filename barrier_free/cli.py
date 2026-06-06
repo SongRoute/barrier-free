@@ -9,7 +9,18 @@ import json
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import collector, field_export, final_demo, mock_data, model, risk_scoring, schema, segments, session_audit
+from . import (
+    collector,
+    field_export,
+    final_demo,
+    mock_data,
+    model,
+    risk_scoring,
+    schema,
+    segments,
+    session_audit,
+    synthetic_after,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -97,6 +108,15 @@ def main(argv: list[str] | None = None) -> int:
     final_demo_cmd.add_argument("--caution-threshold", type=float, default=0.35)
     final_demo_cmd.add_argument("--danger-threshold", type=float, default=0.75)
     final_demo_cmd.add_argument("--danger-jerk", type=float, default=12.0)
+    final_demo_cmd.add_argument("--include-synthetic", action="store_true", help="mock-after로 만든 synthetic after 세션을 포함한다")
+
+    mock_after = sub.add_parser("mock-after", help="세션 루트의 before 세션으로 개발 검증용 synthetic after 세션을 생성한다")
+    mock_after.add_argument("path", type=Path, metavar="sessions_root", help="세션 폴더들이 들어있는 루트 디렉터리, 예: sessions")
+    mock_after.add_argument("--route-name", required=True)
+    mock_after.add_argument("--out", type=Path, default=None, help="mock after를 저장할 루트 디렉터리. 생략하면 sessions_root 아래에 저장")
+    mock_after.add_argument("--improvement-factor", type=float, default=0.35)
+    mock_after.add_argument("--session-prefix", default="after_mock")
+    mock_after.add_argument("--overwrite", action="store_true")
 
     args = parser.parse_args(argv)
     if args.command == "demo":
@@ -171,9 +191,21 @@ def main(argv: list[str] | None = None) -> int:
                 danger_jerk=args.danger_jerk,
             ),
             segment_meters=args.segment_meters,
+            include_synthetic=args.include_synthetic,
         )
         print(path)
         print(args.report_out / "final_summary.md")
+        return 0
+    if args.command == "mock-after":
+        paths = synthetic_after.generate_mock_after_sessions(
+            sessions_root=args.path,
+            route_name=args.route_name,
+            output_dir=args.out,
+            improvement_factor=args.improvement_factor,
+            session_prefix=args.session_prefix,
+            overwrite=args.overwrite,
+        )
+        print(json.dumps({"generated": [str(path) for path in paths]}, ensure_ascii=False, indent=2))
         return 0
     raise AssertionError(f"unknown command: {args.command}")
 

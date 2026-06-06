@@ -58,6 +58,16 @@ python3 -m barrier_free.cli final-demo sessions \
 
 이 결과는 휠체어 안전 최종 판정이 아니라, 관리자가 현장에서 확인할 위험 후보 구간을 좁히는 지도입니다.
 
+실제 `after` 수집 전 전체 파이프라인만 검증할 때는 synthetic after를 생성합니다.
+
+```bash
+python3 -m barrier_free.cli mock-after sessions \
+  --route-name campus_test_route \
+  --improvement-factor 0.35
+```
+
+이후 `final-demo`를 실행할 때는 mock 데이터를 쓴다는 뜻으로 `--include-synthetic`을 명시합니다. 실제 after를 수집한 뒤에는 이 옵션을 빼면 mock after가 자동 제외됩니다.
+
 ## 주요 산출물
 
 - `demo_sessions/model.json`: mock 라벨로 학습한 모델

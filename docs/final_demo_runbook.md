@@ -81,6 +81,33 @@ python3 -m barrier_free.cli final-demo sessions \
 - `web/demo_data.json`: Leaflet 지도가 읽는 최종 데모 payload
 - `report/final_summary.md`: 발표자가 읽을 수 있는 요약 리포트
 
+## 실제 after 수집 전 파이프라인 검증
+
+아직 장애물 제거 후 `after` 세션을 수집하지 못했지만 소프트웨어와 발표 화면을 끝까지 확인해야 할 때는 `mock-after`를 사용합니다.
+
+```bash
+python3 -m barrier_free.cli mock-after sessions \
+  --route-name campus_test_route \
+  --improvement-factor 0.35
+```
+
+이 명령은 같은 route의 `before` 세션을 기반으로 `after_mock_<before_session_id>` 세션을 생성합니다. IMU 편차를 줄인 synthetic after이므로 실제 실험 결과로 주장하면 안 됩니다. 발표에서는 “실제 after 수집 전 파이프라인 검증용 mock 데이터”라고 설명합니다.
+
+mock after 생성 후에는 같은 route 이름으로 최종 데모를 만들 수 있습니다.
+
+```bash
+python3 -m barrier_free.cli final-demo sessions \
+  --route-name campus_test_route \
+  --out web \
+  --report-out report \
+  --caution-threshold 0.35 \
+  --danger-threshold 0.75 \
+  --danger-jerk 12 \
+  --include-synthetic
+```
+
+이미 같은 이름의 mock after가 있으면 덮어쓰지 않습니다. 다시 만들려면 `--overwrite`를 명시합니다. 실제 after 세션을 수집한 뒤에는 `--include-synthetic`을 빼서 mock after가 결과에 섞이지 않게 합니다.
+
 ## 지도 열기
 
 프로젝트 루트에서 웹 서버를 실행합니다.

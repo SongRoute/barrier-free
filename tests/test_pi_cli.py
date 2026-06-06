@@ -1,4 +1,5 @@
 import io
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -26,6 +27,7 @@ class PiCliTest(unittest.TestCase):
         self.assertIn("serve-session", text)
         self.assertIn("serve-sessions", text)
         self.assertIn("final-demo", text)
+        self.assertIn("mock-after", text)
 
     def test_collect_help_lists_no_camera_option(self):
         output = io.StringIO()
@@ -64,6 +66,79 @@ class PiCliTest(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             self.assertTrue((root / "web" / "demo_data.json").exists())
             self.assertTrue((root / "report" / "final_summary.md").exists())
+
+    def test_mock_after_cli_generates_after_session(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sessions_root = root / "sessions"
+            _write_cli_session(sessions_root / "before_001", "before_001", "before", shock_az=2.0)
+
+            exit_code = cli.main(
+                [
+                    "mock-after",
+                    str(sessions_root),
+                    "--route-name",
+                    "obstacle_demo_route",
+                    "--improvement-factor",
+                    "0.25",
+                ]
+            )
+
+            session_path = sessions_root / "after_mock_before_001" / "session.json"
+            session = json.loads(session_path.read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(session["phase"], "after")
+            self.assertEqual(session["source_session_id"], "before_001")
+
+    def test_mock_after_cli_is_excluded_from_final_demo_without_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sessions_root = root / "sessions"
+            _write_cli_session(sessions_root / "before_001", "before_001", "before", shock_az=2.0)
+
+            cli.main(
+                [
+                    "mock-after",
+                    str(sessions_root),
+                    "--route-name",
+                    "obstacle_demo_route",
+                    "--improvement-factor",
+                    "0.25",
+                ]
+            )
+
+            with self.assertRaisesRegex(ValueError, "before and after"):
+                cli.main(
+                    [
+                        "final-demo",
+                        str(sessions_root),
+                        "--out",
+                        str(root / "web"),
+                        "--report-out",
+                        str(root / "report"),
+                        "--route-name",
+                        "obstacle_demo_route",
+                    ]
+                )
+
+            exit_code = cli.main(
+                [
+                    "final-demo",
+                    str(sessions_root),
+                    "--out",
+                    str(root / "web"),
+                    "--report-out",
+                    str(root / "report"),
+                    "--route-name",
+                    "obstacle_demo_route",
+                    "--include-synthetic",
+                ]
+            )
+
+            payload = json.loads((root / "web" / "demo_data.json").read_text(encoding="utf-8"))
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(payload["source"]["include_synthetic"])
+            self.assertEqual(payload["source"]["synthetic_session_count"], 1)
 
 
 def _write_cli_session(path: Path, session_id: str, phase: str, shock_az: float) -> Path:

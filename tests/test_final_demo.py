@@ -105,8 +105,87 @@ class FinalDemoTest(unittest.TestCase):
                     segment_meters=0,
                 )
 
+    def test_export_final_demo_excludes_synthetic_after_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sessions_root = root / "sessions"
+            _write_session(sessions_root / "before_001", "before_001", "before", shock_az=2.0)
+            _write_session(sessions_root / "after_001", "after_001", "after", shock_az=1.1)
+            _write_session(
+                sessions_root / "after_mock_before_001",
+                "after_mock_before_001",
+                "after",
+                shock_az=1.1,
+                model_version="synthetic-after",
+                source_session_id="before_001",
+            )
 
-def _write_session(path: Path, session_id: str, phase: str, shock_az: float) -> Path:
+            payload_path = final_demo.export_final_demo(
+                sessions_root=sessions_root,
+                output_dir=root / "web",
+                report_dir=root / "report",
+                route_name="obstacle_demo_route",
+                thresholds=risk_scoring.RiskThresholds(caution_delta=0.35, danger_delta=0.75, danger_jerk=99.0),
+            )
+
+            payload = json.loads(payload_path.read_text(encoding="utf-8"))
+            self.assertEqual(payload["source"]["session_count"], 2)
+            self.assertEqual(payload["source"]["skipped_session_count"], 1)
+            self.assertEqual(payload["final_summary"]["synthetic_session_count"], 0)
+            self.assertEqual({session["session"]["session_id"] for session in payload["sessions"]}, {"before_001", "after_001"})
+
+    def test_export_final_demo_can_include_synthetic_after_with_report_warning(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            sessions_root = root / "sessions"
+            _write_session(sessions_root / "before_001", "before_001", "before", shock_az=2.0)
+            _write_session(
+                sessions_root / "after_mock_before_001",
+                "after_mock_before_001",
+                "after",
+                shock_az=1.1,
+                model_version="synthetic-after",
+                source_session_id="before_001",
+            )
+
+            payload_path = final_demo.export_final_demo(
+                sessions_root=sessions_root,
+                output_dir=root / "web",
+                report_dir=root / "report",
+                route_name="obstacle_demo_route",
+                thresholds=risk_scoring.RiskThresholds(caution_delta=0.35, danger_delta=0.75, danger_jerk=99.0),
+                include_synthetic=True,
+            )
+
+            payload = json.loads(payload_path.read_text(encoding="utf-8"))
+            report = (root / "report" / "final_summary.md").read_text(encoding="utf-8")
+            self.assertEqual(payload["source"]["synthetic_session_count"], 1)
+            self.assertEqual(payload["final_summary"]["synthetic_session_count"], 1)
+            self.assertIn("synthetic", report)
+            self.assertIn("실제 after 수집 전", report)
+
+
+def _write_session(
+    path: Path,
+    session_id: str,
+    phase: str,
+    shock_az: float,
+    model_version: str = "none",
+    source_session_id: str | None = None,
+) -> Path:
+    session = {
+        "session_id": session_id,
+        "phase": phase,
+        "run_index": 1,
+        "started_at": "2026-06-06T00:00:00Z",
+        "route_name": "obstacle_demo_route",
+        "device": "test",
+        "model_version": model_version,
+        "label_policy_version": "none",
+        "notes": "synthetic final demo test",
+    }
+    if source_session_id:
+        session["source_session_id"] = source_session_id
     raw_imu = [
         {"timestamp": 1000.0, "ax": 0.0, "ay": 0.0, "az": 1.0, "gx": 0.0, "gy": 0.0, "gz": 0.0},
         {"timestamp": 1000.5, "ax": 0.0, "ay": 0.0, "az": shock_az, "gx": 0.0, "gy": 0.0, "gz": 0.0},
@@ -118,17 +197,7 @@ def _write_session(path: Path, session_id: str, phase: str, shock_az: float) -> 
         {"timestamp": 1001.0, "lat": 36.62561, "lon": 127.45401, "gps_valid": 1, "speed_mps": 2.0},
     ]
     bundle = {
-        "session": {
-            "session_id": session_id,
-            "phase": phase,
-            "run_index": 1,
-            "started_at": "2026-06-06T00:00:00Z",
-            "route_name": "obstacle_demo_route",
-            "device": "test",
-            "model_version": "none",
-            "label_policy_version": "none",
-            "notes": "synthetic final demo test",
-        },
+        "session": session,
         "raw_imu": raw_imu,
         "gps": gps,
         "events": [],
