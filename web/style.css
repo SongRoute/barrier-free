@@ -45,6 +45,11 @@ header p {
   font-size: 13px;
 }
 
+.controls input[type="range"] {
+  width: 110px;
+  vertical-align: middle;
+}
+
 main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;

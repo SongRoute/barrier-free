@@ -51,6 +51,7 @@ function populateSessions(sessions) {
 
 function render() {
   clearLayers();
+  updateMarkerScaleLabel();
   renderFinalSummary(payload);
   renderThresholdSummary(payload);
   const viewMode = document.getElementById("view-mode").value;
@@ -94,11 +95,11 @@ function renderSegments(segments) {
     const lat = average(events.map((event) => event.lat));
     const lon = average(events.map((event) => event.lon));
     const marker = L.circleMarker([lat, lon], {
-      radius: 12,
+      radius: scaledMarkerRadius(4),
       color: segmentColor(segment.risk_level),
       fillColor: segmentColor(segment.risk_level),
-      fillOpacity: 0.22,
-      weight: 3,
+      fillOpacity: 0.42,
+      weight: scaledStrokeWeight(1.5),
     });
     marker.bindPopup(segmentPopup(segment));
     marker.on("click", () => showDetails(segmentPopup(segment)));
@@ -118,11 +119,11 @@ function renderEvents(events) {
     if (Number(event.confidence) < minConfidence) continue;
 
     const marker = L.circleMarker([event.lat, event.lon], {
-      radius: 5 + Number(event.risk_score) * 6,
+      radius: scaledMarkerRadius(2.5 + Number(event.risk_score) * 2.5),
       color: segmentColor(event.prediction),
       fillColor: segmentColor(event.prediction),
       fillOpacity: 0.82,
-      weight: 1,
+      weight: scaledStrokeWeight(1),
     });
     marker.bindPopup(eventPopup(event));
     marker.on("click", () => showDetails(eventPopup(event)));
@@ -160,11 +161,11 @@ function renderImuHeatRoute(windows) {
     }
 
     const marker = L.circleMarker(currentCoord, {
-      radius: 3 + Math.min(Number(current.accel_delta_max) * 4, 8),
+      radius: scaledMarkerRadius(2 + Math.min(Number(current.accel_delta_max) * 1.5, 3)),
       color,
       fillColor: color,
       fillOpacity: 0.5,
-      weight: 1,
+      weight: scaledStrokeWeight(1),
     });
     marker.bindPopup(popup);
     marker.on("click", () => showDetails(popup));
@@ -336,11 +337,11 @@ function renderComparisonMode(comparison, sessions) {
 
     const popup = comparisonPopup(row);
     const marker = L.circleMarker([lat, lon], {
-      radius: 16,
+      radius: scaledMarkerRadius(5),
       color: statusColor(row.status),
       fillColor: statusColor(row.status),
-      fillOpacity: 0.14,
-      weight: 4,
+      fillOpacity: 0.48,
+      weight: scaledStrokeWeight(2),
     });
     marker.bindPopup(popup);
     marker.on("click", () => showDetails(popup));
@@ -416,11 +417,32 @@ function showDetails(html) {
   document.getElementById("details").innerHTML = html;
 }
 
+function markerScale() {
+  const input = document.getElementById("marker-size");
+  const value = input ? Number(input.value) : 1;
+  if (!Number.isFinite(value) || value <= 0) return 1;
+  return value;
+}
+
+function scaledMarkerRadius(baseRadius) {
+  return Math.max(1, baseRadius * markerScale());
+}
+
+function scaledStrokeWeight(baseWeight) {
+  return Math.max(1, baseWeight * Math.sqrt(markerScale()));
+}
+
+function updateMarkerScaleLabel() {
+  const element = document.getElementById("marker-size-value");
+  if (!element) return;
+  element.textContent = `${markerScale().toFixed(1)}x`;
+}
+
 function average(values) {
   return values.reduce((sum, value) => sum + Number(value), 0) / values.length;
 }
 
-for (const id of ["danger-only", "gps-valid-only", "confidence-filter", "view-mode", "imu-heat-toggle"]) {
+for (const id of ["danger-only", "gps-valid-only", "confidence-filter", "view-mode", "imu-heat-toggle", "marker-size"]) {
   document.getElementById(id).addEventListener("input", render);
 }
 
